@@ -40,6 +40,11 @@ app.get('/', (req, res) => {
   res.json({ message: 'All-in-One Planner API is running...' });
 });
 
+// Catch-all for unmatched routes
+app.use('*', (req, res) => {
+  res.status(404).json({ message: `API Route not found: ${req.originalUrl}` });
+});
+
 // Global Error Handler
 app.use((err, req, res, next) => {
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
