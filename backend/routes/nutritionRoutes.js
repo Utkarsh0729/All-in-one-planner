@@ -60,8 +60,9 @@ const fetchFromOpenFoodFacts = async (name) => {
 
 // Query NVIDIA AI for nutritional info per 100g
 const fetchFromNvidia = async (name) => {
-  const systemPrompt = `You are a food nutrition analyst. Analyze the nutrient composition of this food item.
-Provide the nutritional content based on 100g (or 100ml for liquids) standard size.`;
+  const systemPrompt = `You are a professional food nutrition analyst. Analyze the nutrient composition of the given food or supplement.
+Provide highly accurate nutritional content based on 100g (or 100ml for liquids) standard size.
+Be extremely precise with high-protein supplements or specific health foods (e.g. Whey Protein Powder must contain around 70-80g protein, 350-400 kcal, and very low carbs/fat per 100g).`;
   const userPrompt = `Analyze nutrition for "${name}". Return ONLY a JSON object:
   {
     "name": "formatted food name",
@@ -124,20 +125,22 @@ const searchNutritionComposition = async (name) => {
     return { ...cachedFood.toObject(), source: 'cache' };
   }
 
-  // 2. Check Free Third-Party API (Open Food Facts)
-  console.log(`[Cache Miss] Fetching from Open Food Facts API for ${searchName}`);
-  let data = await fetchFromOpenFoodFacts(searchName);
-  let source = 'open_food_facts';
+  // 2. Query NVIDIA AI first for high-quality standard nutrition metadata
+  console.log(`[Cache Miss] Querying NVIDIA AI for ${searchName}`);
+  let data = null;
+  let source = 'nvidia_ai';
 
-  // 3. Check NVIDIA AI API if Open Food Facts failed
-  if (!data) {
-    console.log(`[API Miss] Fetching from NVIDIA AI for ${searchName}`);
-    try {
-      data = await fetchFromNvidia(searchName);
-      source = 'nvidia_ai';
-    } catch (nvidiaError) {
+  try {
+    data = await fetchFromNvidia(searchName);
+  } catch (nvidiaError) {
+    console.log(`[NVIDIA Miss] Falling back to Open Food Facts API for ${searchName}`);
+    // 3. Check Free Third-Party API (Open Food Facts) as a backup
+    data = await fetchFromOpenFoodFacts(searchName);
+    source = 'open_food_facts';
+
+    if (!data) {
       // 4. Final Fallback to Rules-based Local DB
-      console.log(`[NVIDIA Miss] Falling back to local dictionary for ${searchName}`);
+      console.log(`[OFF Miss] Falling back to local dictionary for ${searchName}`);
       data = getMockNutrients(searchName);
       source = 'local_mock';
     }
