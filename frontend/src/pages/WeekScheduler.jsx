@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Plus, Trash2, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, Plus, Trash2, CheckCircle2, ChevronLeft, ChevronRight, Edit2, Check, X } from 'lucide-react';
 
 const WeekScheduler = () => {
   const { token, API_URL } = useAuth();
@@ -22,6 +22,12 @@ const WeekScheduler = () => {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Edit & Add Sub-goal state
+  const [editingGoalId, setEditingGoalId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [addingSubtaskGoalId, setAddingSubtaskGoalId] = useState(null);
+  const [newSubtaskText, setNewSubtaskText] = useState('');
 
   const weekStartStr = currentWeekMonday.toISOString().split('T')[0];
 
@@ -146,6 +152,62 @@ const WeekScheduler = () => {
     }
   };
 
+  const handleStartEdit = (goal) => {
+    setEditingGoalId(goal._id);
+    setEditTitle(goal.title);
+  };
+
+  const handleSaveEdit = async (goalId) => {
+    if (!editTitle.trim()) return;
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/week-goals/${goalId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: editTitle.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setGoals(prev => prev.map(g => g._id === goalId ? data : g));
+      setEditingGoalId(null);
+    } catch (err) {
+      setError(err.message || 'Failed to update goal title.');
+    }
+  };
+
+  const handleAddSubtask = async (goalId) => {
+    if (!newSubtaskText.trim()) return;
+    setError('');
+    const goal = goals.find(g => g._id === goalId);
+    if (!goal) return;
+
+    const updatedSubtasks = [
+      ...goal.subtasks,
+      { text: newSubtaskText.trim(), checked: false }
+    ];
+
+    try {
+      const res = await fetch(`${API_URL}/week-goals/${goalId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ subtasks: updatedSubtasks })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setGoals(prev => prev.map(g => g._id === goalId ? data : g));
+      setAddingSubtaskGoalId(null);
+      setNewSubtaskText('');
+    } catch (err) {
+      setError(err.message || 'Failed to add sub-goal.');
+    }
+  };
+
   const changeWeek = (direction) => {
     const newMonday = new Date(currentWeekMonday);
     newMonday.setDate(newMonday.getDate() + direction * 7);
@@ -195,33 +257,77 @@ const WeekScheduler = () => {
               <div className="week-goals-list">
                 {goals.map((goal) => (
                   <div key={goal._id} className="week-goal-card">
-                    <div className="week-goal-header">
-                      <div>
-                        <h4 style={{ fontSize: '17px', textDecoration: goal.completed ? 'line-through' : 'none' }}>
-                          {goal.title}
-                        </h4>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                          Progress: {goal.progress}% Completed
-                        </span>
-                      </div>
-                      <div className="gap-10">
-                        {goal.subtasks.length === 0 && (
-                          <button 
-                            className={`btn ${goal.completed ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => handleToggleGoalOnly(goal._id)}
-                            style={{ fontSize: '12px', padding: '6px 12px' }}
+                    <div className="week-goal-header" style={{ minHeight: '42px', alignItems: 'center' }}>
+                      {editingGoalId === goal._id ? (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', marginRight: '16px' }}>
+                          <input
+                            type="text"
+                            className="input-field"
+                            style={{ margin: 0, padding: '4px 8px', fontSize: '14px', flex: 1 }}
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit(goal._id);
+                              if (e.key === 'Escape') setEditingGoalId(null);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => handleSaveEdit(goal._id)}
+                            style={{ padding: '6px' }}
                           >
-                            {goal.completed ? 'Done' : 'Mark Done'}
+                            <Check size={16} />
                           </button>
-                        )}
-                        <button 
-                          className="btn-danger"
-                          onClick={() => handleDeleteGoal(goal._id)}
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '6px' }}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => setEditingGoalId(null)}
+                            style={{ padding: '6px' }}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <h4 style={{ fontSize: '17px', textDecoration: goal.completed ? 'line-through' : 'none' }}>
+                              {goal.title}
+                            </h4>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                              Progress: {goal.progress}% Completed
+                            </span>
+                          </div>
+                          <div className="gap-10" style={{ display: 'flex', alignItems: 'center' }}>
+                            {goal.subtasks.length === 0 && (
+                              <button 
+                                className={`btn ${goal.completed ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={() => handleToggleGoalOnly(goal._id)}
+                                style={{ fontSize: '12px', padding: '6px 12px' }}
+                              >
+                                {goal.completed ? 'Done' : 'Mark Done'}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(goal)}
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '6px', color: 'var(--text-secondary)' }}
+                              title="Edit goal title"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button 
+                              className="btn-danger"
+                              onClick={() => handleDeleteGoal(goal._id)}
+                              style={{ border: 'none', background: 'none', cursor: 'pointer', padding: '6px' }}
+                              title="Delete goal"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {/* Progress Bar */}
@@ -236,7 +342,7 @@ const WeekScheduler = () => {
                     </div>
 
                     {/* Subtasks List */}
-                    {goal.subtasks.length > 0 && (
+                    {(goal.subtasks.length > 0 || addingSubtaskGoalId === goal._id) ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
                         {goal.subtasks.map((sub) => (
                           <div 
@@ -252,7 +358,90 @@ const WeekScheduler = () => {
                             </span>
                           </div>
                         ))}
+
+                        {addingSubtaskGoalId === goal._id ? (
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: goal.subtasks.length > 0 ? '8px' : '0' }}>
+                            <input 
+                              type="text" 
+                              placeholder="Type new sub-goal..."
+                              className="input-field" 
+                              style={{ margin: 0, padding: '4px 8px', fontSize: '13px', flex: 1 }}
+                              value={newSubtaskText}
+                              onChange={(e) => setNewSubtaskText(e.target.value)}
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleAddSubtask(goal._id);
+                                if (e.key === 'Escape') {
+                                  setAddingSubtaskGoalId(null);
+                                  setNewSubtaskText('');
+                                }
+                              }}
+                            />
+                            <button 
+                              type="button" 
+                              className="btn btn-primary"
+                              onClick={() => handleAddSubtask(goal._id)}
+                              style={{ padding: '6px 12px', fontSize: '12px' }}
+                            >
+                              Add
+                            </button>
+                            <button 
+                              type="button" 
+                              className="btn btn-secondary"
+                              onClick={() => {
+                                setAddingSubtaskGoalId(null);
+                                setNewSubtaskText('');
+                              }}
+                              style={{ padding: '6px 12px', fontSize: '12px' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setAddingSubtaskGoalId(goal._id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--accent-cyan)',
+                              cursor: 'pointer',
+                              fontSize: '13.5px',
+                              padding: '4px 0',
+                              marginTop: '6px',
+                              width: 'fit-content',
+                              transition: 'var(--transition)'
+                            }}
+                            className="hover-opacity"
+                          >
+                            <Plus size={14} /> Add Sub-goal
+                          </button>
+                        )}
                       </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setAddingSubtaskGoalId(goal._id)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--accent-cyan)',
+                          cursor: 'pointer',
+                          fontSize: '13.5px',
+                          padding: '4px 0',
+                          width: 'fit-content',
+                          transition: 'var(--transition)'
+                        }}
+                        className="hover-opacity"
+                      >
+                        <Plus size={14} /> Add Sub-goal
+                      </button>
                     )}
                   </div>
                 ))}
