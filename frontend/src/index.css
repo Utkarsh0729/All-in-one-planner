@@ -287,6 +287,11 @@ button, input, select, textarea {
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
 }
 
+select option {
+  background-color: var(--bg-panel-solid);
+  color: var(--text-primary);
+}
+
 /* Premium Buttons */
 .btn {
   display: inline-flex;

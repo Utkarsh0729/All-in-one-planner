@@ -411,7 +411,10 @@ const GymExercises = () => {
       <OnboardingModal 
         section="workout" 
         isOpen={isOnboardingOpen} 
-        onClose={() => setIsOnboardingOpen(false)} 
+        onClose={() => {
+          setIsOnboardingOpen(false);
+          fetchWorkoutLog();
+        }} 
       />
     </div>
   );

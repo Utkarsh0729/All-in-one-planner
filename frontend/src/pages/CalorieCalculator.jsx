@@ -316,7 +316,10 @@ const CalorieCalculator = () => {
       <OnboardingModal 
         section="nutrition" 
         isOpen={isOnboardingOpen} 
-        onClose={() => setIsOnboardingOpen(false)} 
+        onClose={() => {
+          setIsOnboardingOpen(false);
+          fetchLogAndProfile();
+        }} 
       />
     </div>
   );
