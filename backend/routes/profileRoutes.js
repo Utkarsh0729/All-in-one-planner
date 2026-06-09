@@ -2,6 +2,7 @@ import express from 'express';
 import { protect } from '../middleware/auth.js';
 import Profile from '../models/Profile.js';
 import User from '../models/User.js';
+import { queryNvidiaAI } from '../utils/nvidia.js';
 
 const router = express.Router();
 
@@ -41,8 +42,41 @@ router.post('/nutrition', protect, async (req, res) => {
     profile.activityLevel = activityLevel;
     profile.fitnessGoal = fitnessGoal;
 
-    // Calculate macros automatically based on details
-    profile.calculateMacros();
+    // Use NVIDIA AI to calculate customized targets
+    const systemPrompt = `You are an expert nutritionist and fitness AI advisor. Calculate personal daily calorie and macronutrient targets.`;
+    const userPrompt = `Calculate daily target calories and macros (Protein, Carbs, Fat) for a user with the following details:
+    - Age: ${age}
+    - Gender: ${gender}
+    - Height: ${height} cm
+    - Weight: ${weight} kg
+    - Activity Level: ${activityLevel} (sedentary, lightly_active, moderately_active, very_active)
+    - Fitness Goal: ${fitnessGoal} (lose_weight, maintain_weight, gain_muscle)
+
+    Ensure your calculations are realistic and align with professional nutritional guidelines.
+    Return ONLY a JSON object:
+    {
+      "targetCalories": number (kcal),
+      "targetProtein": number (grams),
+      "targetCarbs": number (grams),
+      "targetFat": number (grams)
+    }
+    Do not return any introductory or concluding text, only the raw JSON.`;
+
+    try {
+      console.log(`[AI Target Calculation] Querying NVIDIA AI for user fitness stats`);
+      const aiTargets = await queryNvidiaAI(systemPrompt, userPrompt, true);
+      
+      profile.targetCalories = Number(aiTargets.targetCalories) || 2000;
+      profile.targetProtein = Number(aiTargets.targetProtein) || 120;
+      profile.targetCarbs = Number(aiTargets.targetCarbs) || 200;
+      profile.targetFat = Number(aiTargets.targetFat) || 60;
+      console.log(`[AI Target Success] Calories: ${profile.targetCalories}, P: ${profile.targetProtein}g, C: ${profile.targetCarbs}g, F: ${profile.targetFat}g`);
+    } catch (aiError) {
+      console.warn('[AI Target Failed] NVIDIA AI calculation failed. Falling back to local BMR formulas:', aiError);
+      // Fallback calculation using standard formulas
+      profile.calculateMacros();
+    }
+
     await profile.save();
 
     // Mark user onboarding completed for nutrition
