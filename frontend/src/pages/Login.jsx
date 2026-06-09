@@ -12,6 +12,58 @@ const Login = () => {
   const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
 
+  // Load and initialize Google Sign-In
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      console.warn('VITE_GOOGLE_CLIENT_ID is not configured in .env. Google Sign-In will not render.');
+      return;
+    }
+
+    const handleGoogleCallback = async (response) => {
+      setError('');
+      setLoading(true);
+      try {
+        await googleLogin(response.credential);
+        navigate('/');
+      } catch (err) {
+        setError(err.message || 'Google authentication failed');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const initializeGoogle = () => {
+      try {
+        if (window.google) {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCallback,
+          });
+
+          window.google.accounts.id.renderButton(
+            document.getElementById('google-signin-btn'),
+            { theme: 'dark', size: 'large', width: 348 }
+          );
+        }
+      } catch (e) {
+        console.error('Google Sign-In initialization failed:', e);
+      }
+    };
+
+    if (window.google) {
+      initializeGoogle();
+    } else {
+      const interval = setInterval(() => {
+        if (window.google) {
+          initializeGoogle();
+          clearInterval(interval);
+        }
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [googleLogin, navigate]);
+
   // Handle standard login
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,7 +85,6 @@ const Login = () => {
     setError('');
     setLoading(true);
     try {
-      // Send a mock token string to the backend which will be parsed into a developer account
       await googleLogin('mock-developer');
       navigate('/');
     } catch (err) {
@@ -95,9 +146,13 @@ const Login = () => {
           <hr style={{ flex: 1, border: 'none', borderTop: '1px solid var(--border-light)' }} />
         </div>
 
-        <button onClick={handleDeveloperBypass} className="btn btn-secondary" style={{ width: '100%', gap: '8px', background: 'rgba(99, 102, 241, 0.05)', borderColor: 'var(--primary-glow)' }}>
-          <Sparkles size={16} className="text-cyan" />
-          Continue with Google (Mock)
+        {/* Real Google Sign-In Button Container */}
+        <div id="google-signin-btn" style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px', minHeight: '40px' }}></div>
+
+        {/* Fallback/Mock Developer Bypass Button */}
+        <button onClick={handleDeveloperBypass} className="btn btn-secondary" style={{ width: '100%', gap: '8px', fontSize: '13px', background: 'rgba(99, 102, 241, 0.03)', borderColor: 'var(--border-light)', padding: '8px 16px' }}>
+          <Sparkles size={14} className="text-cyan" />
+          Bypass Google Auth (Mock Dev)
         </button>
 
         <p style={{ marginTop: '24px', textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)' }}>
