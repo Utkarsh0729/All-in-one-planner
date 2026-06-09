@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FileText, Lock, Unlock, Plus, Trash2, Link as LinkIcon, CheckSquare, Eye } from 'lucide-react';
+import { FileText, Lock, Unlock, Plus, Trash2, Link as LinkIcon, CheckSquare, Eye, X } from 'lucide-react';
 
 const NotesTaker = () => {
   const { token, API_URL } = useAuth();
@@ -310,6 +310,9 @@ const NotesTaker = () => {
       {activePromptNoteId && (
         <div className="modal-overlay">
           <div className="modal-content card" style={{ maxWidth: '400px' }}>
+            <button type="button" className="modal-close-btn" onClick={() => setActivePromptNoteId(null)} aria-label="Close modal">
+              <X size={20} />
+            </button>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
               <Lock size={20} className="text-red" /> Unlock Note Block
             </h3>
@@ -352,6 +355,9 @@ const NotesTaker = () => {
       {viewingNote && (
         <div className="modal-overlay">
           <div className="modal-content card" style={{ maxWidth: '600px' }}>
+            <button type="button" className="modal-close-btn" onClick={() => setViewingNote(null)} aria-label="Close modal">
+              <X size={20} />
+            </button>
             <div className="flex-between" style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '12px', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '20px' }}>{viewingNote.title}</h3>
               {viewingNote.isProtected && <Lock size={16} className="text-red" />}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { X } from 'lucide-react';
 
 const OnboardingModal = ({ section, isOpen, onClose }) => {
   const { token, updateOnboardingStatus, API_URL } = useAuth();
@@ -81,7 +82,10 @@ const OnboardingModal = ({ section, isOpen, onClose }) => {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content card">
+      <div className="modal-content card" style={{ position: 'relative' }}>
+        <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close modal">
+          <X size={20} />
+        </button>
         <h2 style={{ marginBottom: '10px', fontSize: '24px' }}>
           {section === 'nutrition' ? '🍎 Nutrition & Health Setup' : '💪 Gym Planner Setup'}
         </h2>

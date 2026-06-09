@@ -355,6 +355,7 @@ select option {
 }
 
 .modal-content {
+  position: relative;
   background: var(--bg-panel-solid);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
@@ -363,6 +364,28 @@ select option {
   padding: 32px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 50%;
+  z-index: 10;
+}
+
+.modal-close-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 @keyframes fadeIn {
