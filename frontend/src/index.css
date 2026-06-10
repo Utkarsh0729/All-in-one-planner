@@ -1188,3 +1188,66 @@ select option {
   transform: scale(0.96) !important;
 }
 
+/* Subgoal Item Styling with Hover Effects */
+.subgoal-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  border-left: 3px solid transparent;
+  background: rgba(255, 255, 255, 0.005);
+}
+
+.subgoal-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+  border-left-color: var(--accent-cyan);
+  box-shadow: inset 0 0 12px rgba(6, 182, 212, 0.03);
+}
+
+.subgoal-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.subgoal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.subgoal-item:hover .subgoal-actions {
+  opacity: 1;
+}
+
+.subgoal-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.subgoal-action-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.subgoal-action-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--accent-red);
+}
+
+

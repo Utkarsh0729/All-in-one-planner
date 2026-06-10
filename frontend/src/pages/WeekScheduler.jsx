@@ -7,7 +7,8 @@ import {
   CheckCircle2, 
   ChevronLeft, 
   ChevronRight, 
-  Edit2, 
+  ChevronDown,
+  Edit2,  
   Check, 
   X,
   Flame,
@@ -104,6 +105,8 @@ const WeekScheduler = () => {
   const [editTitle, setEditTitle] = useState('');
   const [addingSubtaskGoalId, setAddingSubtaskGoalId] = useState(null);
   const [newSubtaskText, setNewSubtaskText] = useState('');
+  const [collapsedGoals, setCollapsedGoals] = useState({});
+  const [editingSubtask, setEditingSubtask] = useState({ goalId: null, subtaskId: null, text: '' });
 
   // Analytics data state
   const [analyticsData, setAnalyticsData] = useState({
@@ -205,6 +208,80 @@ const WeekScheduler = () => {
     } catch (err) {
       console.error(err);
       setError(err.message);
+    }
+  };
+
+  const toggleGoalCollapse = (goalId) => {
+    setCollapsedGoals(prev => ({
+      ...prev,
+      [goalId]: !prev[goalId]
+    }));
+  };
+
+  const handleStartSubtaskEdit = (goalId, subtask) => {
+    setEditingSubtask({
+      goalId,
+      subtaskId: subtask._id,
+      text: subtask.text
+    });
+  };
+
+  const handleSaveSubtaskEdit = async (goalId, subtaskId) => {
+    if (!editingSubtask.text.trim()) return;
+    setError('');
+    const goal = goals.find(g => g._id === goalId);
+    if (!goal) return;
+
+    const updatedSubtasks = goal.subtasks.map(s => {
+      if (s._id === subtaskId) {
+        return { ...s, text: editingSubtask.text.trim() };
+      }
+      return s;
+    });
+
+    try {
+      const res = await fetch(`${API_URL}/week-goals/${goalId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ subtasks: updatedSubtasks })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setGoals(prev => prev.map(g => g._id === goalId ? data : g));
+      setEditingSubtask({ goalId: null, subtaskId: null, text: '' });
+      fetchAnalytics();
+    } catch (err) {
+      console.error('Failed to edit sub-goal:', err);
+      setError(err.message || 'Failed to edit sub-goal.');
+    }
+  };
+
+  const handleDeleteSubtask = async (goalId, subtaskId) => {
+    setError('');
+    const goal = goals.find(g => g._id === goalId);
+    if (!goal) return;
+
+    const updatedSubtasks = goal.subtasks.filter(s => s._id !== subtaskId);
+
+    try {
+      const res = await fetch(`${API_URL}/week-goals/${goalId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ subtasks: updatedSubtasks })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setGoals(prev => prev.map(g => g._id === goalId ? data : g));
+      fetchAnalytics();
+    } catch (err) {
+      console.error('Failed to delete sub-goal:', err);
+      setError('Failed to delete sub-goal.');
     }
   };
 
@@ -472,13 +549,37 @@ const WeekScheduler = () => {
                           </div>
                         ) : (
                           <>
-                            <div>
-                              <h4 style={{ fontSize: '17px', textDecoration: goal.completed ? 'line-through' : 'none' }}>
-                                {goal.title}
-                              </h4>
-                              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                                Progress: {goal.progress}% Completed
-                              </span>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                              {goal.subtasks.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleGoalCollapse(goal._id)}
+                                  style={{
+                                    border: 'none',
+                                    background: 'none',
+                                    cursor: 'pointer',
+                                    padding: '4px',
+                                    color: 'var(--text-secondary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginTop: '2px',
+                                    transition: 'transform 0.2s ease',
+                                    transform: collapsedGoals[goal._id] ? 'rotate(-90deg)' : 'rotate(0deg)',
+                                  }}
+                                  title={collapsedGoals[goal._id] ? "Expand sub-goals" : "Collapse sub-goals"}
+                                >
+                                  <ChevronDown size={18} />
+                                </button>
+                              )}
+                              <div>
+                                <h4 style={{ fontSize: '17px', textDecoration: goal.completed ? 'line-through' : 'none' }}>
+                                  {goal.title}
+                                </h4>
+                                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                  Progress: {goal.progress}% Completed
+                                </span>
+                              </div>
                             </div>
                             <div className="gap-10" style={{ display: 'flex', alignItems: 'center' }}>
                               {goal.subtasks.length === 0 && (
@@ -523,22 +624,91 @@ const WeekScheduler = () => {
                       </div>
 
                       {/* Subtasks List */}
-                      {(goal.subtasks.length > 0 || addingSubtaskGoalId === goal._id) ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
-                          {goal.subtasks.map((sub) => (
-                            <div 
-                              key={sub._id} 
-                              style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '14px' }}
-                              onClick={() => handleToggleSubtask(goal._id, sub._id)}
-                            >
-                              <div className={`checkbox-custom ${sub.checked ? 'checked' : ''}`} style={{ width: '18px', height: '18px', borderRadius: '4px' }}>
-                                {sub.checked && <CheckCircle2 size={12} />}
+                      {((goal.subtasks.length > 0 && !collapsedGoals[goal._id]) || addingSubtaskGoalId === goal._id) ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                          {goal.subtasks.map((sub) => {
+                            const isEditingThisSub = editingSubtask && editingSubtask.goalId === goal._id && editingSubtask.subtaskId === sub._id;
+                            
+                            return (
+                              <div 
+                                key={sub._id} 
+                                className="subgoal-item"
+                              >
+                                {isEditingThisSub ? (
+                                  <div 
+                                    style={{ display: 'flex', gap: '8px', alignItems: 'center', flex: 1 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <input 
+                                      type="text" 
+                                      className="input-field" 
+                                      style={{ margin: 0, padding: '4px 8px', fontSize: '13px', flex: 1 }}
+                                      value={editingSubtask.text}
+                                      onChange={(e) => setEditingSubtask(prev => ({ ...prev, text: e.target.value }))}
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleSaveSubtaskEdit(goal._id, sub._id);
+                                        if (e.key === 'Escape') setEditingSubtask({ goalId: null, subtaskId: null, text: '' });
+                                      }}
+                                    />
+                                    <button 
+                                      type="button" 
+                                      className="btn btn-primary"
+                                      onClick={() => handleSaveSubtaskEdit(goal._id, sub._id)}
+                                      style={{ padding: '6px' }}
+                                    >
+                                      <Check size={14} />
+                                    </button>
+                                    <button 
+                                      type="button" 
+                                      className="btn btn-secondary"
+                                      onClick={() => setEditingSubtask({ goalId: null, subtaskId: null, text: '' })}
+                                      style={{ padding: '6px' }}
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div 
+                                      className="subgoal-item-left"
+                                      onClick={() => handleToggleSubtask(goal._id, sub._id)}
+                                    >
+                                      <div className={`checkbox-custom ${sub.checked ? 'checked' : ''}`} style={{ width: '18px', height: '18px', borderRadius: '4px' }}>
+                                        {sub.checked && <CheckCircle2 size={12} />}
+                                      </div>
+                                      <span style={{ 
+                                        color: sub.checked ? 'var(--text-muted)' : 'var(--text-primary)', 
+                                        textDecoration: sub.checked ? 'line-through' : 'none',
+                                        wordBreak: 'break-all'
+                                      }}>
+                                        {sub.text}
+                                      </span>
+                                    </div>
+                                    
+                                    <div className="subgoal-actions" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        type="button"
+                                        className="subgoal-action-btn"
+                                        onClick={() => handleStartSubtaskEdit(goal._id, sub)}
+                                        title="Edit sub-goal"
+                                      >
+                                        <Edit2 size={13} />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="subgoal-action-btn delete"
+                                        onClick={() => handleDeleteSubtask(goal._id, sub._id)}
+                                        title="Delete sub-goal"
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    </div>
+                                  </>
+                                )}
                               </div>
-                              <span style={{ color: sub.checked ? 'var(--text-muted)' : 'var(--text-primary)', textDecoration: sub.checked ? 'line-through' : 'none' }}>
-                                {sub.text}
-                              </span>
-                            </div>
-                          ))}
+                            );
+                          })}
 
                           {addingSubtaskGoalId === goal._id ? (
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: goal.subtasks.length > 0 ? '8px' : '0' }}>
@@ -581,7 +751,10 @@ const WeekScheduler = () => {
                           ) : (
                             <button
                               type="button"
-                              onClick={() => setAddingSubtaskGoalId(goal._id)}
+                              onClick={() => {
+                                setCollapsedGoals(prev => ({ ...prev, [goal._id]: false }));
+                                setAddingSubtaskGoalId(goal._id);
+                              }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -605,7 +778,10 @@ const WeekScheduler = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setAddingSubtaskGoalId(goal._id)}
+                          onClick={() => {
+                            setCollapsedGoals(prev => ({ ...prev, [goal._id]: false }));
+                            setAddingSubtaskGoalId(goal._id);
+                          }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
