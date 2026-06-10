@@ -8,6 +8,7 @@ const foodItemSchema = new mongoose.Schema({
   protein: { type: Number, default: 0 },
   carbs: { type: Number, default: 0 },
   fat: { type: Number, default: 0 },
+  fiber: { type: Number, default: 0 },
 });
 
 const nutritionLogSchema = new mongoose.Schema(
@@ -26,6 +27,7 @@ const nutritionLogSchema = new mongoose.Schema(
     totalProtein: { type: Number, default: 0 },
     totalCarbs: { type: Number, default: 0 },
     totalFat: { type: Number, default: 0 },
+    totalFiber: { type: Number, default: 0 },
   },
   {
     timestamps: true,
@@ -41,18 +43,21 @@ nutritionLogSchema.pre('save', function(next) {
   let protein = 0;
   let carbs = 0;
   let fat = 0;
+  let fiber = 0;
 
   this.items.forEach(item => {
     calories += item.calories;
     protein += item.protein;
     carbs += item.carbs;
     fat += item.fat;
+    fiber += item.fiber || 0;
   });
 
   this.totalCalories = Math.round(calories);
   this.totalProtein = Math.round(protein);
   this.totalCarbs = Math.round(carbs);
   this.totalFat = Math.round(fat);
+  this.totalFiber = Math.round(fiber);
 
   next();
 });

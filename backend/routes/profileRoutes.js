@@ -44,7 +44,7 @@ router.post('/nutrition', protect, async (req, res) => {
 
     // Use NVIDIA AI to calculate customized targets
     const systemPrompt = `You are an expert nutritionist and fitness AI advisor. Calculate personal daily calorie and macronutrient targets.`;
-    const userPrompt = `Calculate daily target calories and macros (Protein, Carbs, Fat) for a user with the following details:
+    const userPrompt = `Calculate daily target calories and macros (Protein, Carbs, Fat, Fiber) for a user with the following details:
     - Age: ${age}
     - Gender: ${gender}
     - Height: ${height} cm
@@ -58,7 +58,8 @@ router.post('/nutrition', protect, async (req, res) => {
       "targetCalories": number (kcal),
       "targetProtein": number (grams),
       "targetCarbs": number (grams),
-      "targetFat": number (grams)
+      "targetFat": number (grams),
+      "targetFiber": number (grams)
     }
     Do not return any introductory or concluding text, only the raw JSON.`;
 
@@ -70,7 +71,8 @@ router.post('/nutrition', protect, async (req, res) => {
       profile.targetProtein = Number(aiTargets.targetProtein) || 120;
       profile.targetCarbs = Number(aiTargets.targetCarbs) || 200;
       profile.targetFat = Number(aiTargets.targetFat) || 60;
-      console.log(`[AI Target Success] Calories: ${profile.targetCalories}, P: ${profile.targetProtein}g, C: ${profile.targetCarbs}g, F: ${profile.targetFat}g`);
+      profile.targetFiber = Number(aiTargets.targetFiber) || Math.round((profile.targetCalories / 1000) * 14);
+      console.log(`[AI Target Success] Calories: ${profile.targetCalories}, P: ${profile.targetProtein}g, C: ${profile.targetCarbs}g, F: ${profile.targetFat}g, Fi: ${profile.targetFiber}g`);
     } catch (aiError) {
       console.warn('[AI Target Failed] NVIDIA AI calculation failed. Falling back to local BMR formulas:', aiError);
       // Fallback calculation using standard formulas

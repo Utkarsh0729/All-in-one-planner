@@ -27,6 +27,7 @@ const profileSchema = new mongoose.Schema(
     targetProtein: { type: Number, default: 120 }, // in grams
     targetCarbs: { type: Number, default: 200 },   // in grams
     targetFat: { type: Number, default: 60 },      // in grams
+    targetFiber: { type: Number, default: 25 },    // in grams
 
     // Gym/Workout onboarding variables
     workoutExperience: {
@@ -102,6 +103,7 @@ profileSchema.methods.calculateMacros = function() {
   this.targetProtein = Math.round((calories * proteinRatio) / 4);
   this.targetCarbs = Math.round((calories * carbRatio) / 4);
   this.targetFat = Math.round((calories * fatRatio) / 9);
+  this.targetFiber = Math.round((calories / 1000) * 14);
 };
 
 const Profile = mongoose.model('Profile', profileSchema);

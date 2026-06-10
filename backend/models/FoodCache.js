@@ -13,6 +13,7 @@ const foodCacheSchema = new mongoose.Schema(
     protein: { type: Number, required: true },  // g per baseQuantity
     carbs: { type: Number, required: true },    // g per baseQuantity
     fat: { type: Number, required: true },      // g per baseQuantity
+    fiber: { type: Number, default: 0 },
     baseUnit: { type: String, default: 'g' },   // unit type (g, piece, ml)
     baseQuantity: { type: Number, default: 100 } // standard base quantity (e.g. 100g)
   },
