@@ -565,11 +565,23 @@ const WeekScheduler = () => {
                           </div>
                         ) : (
                           <>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                            <div 
+                              style={{ 
+                                display: 'flex', 
+                                alignItems: 'flex-start', 
+                                gap: '8px', 
+                                flex: 1, 
+                                cursor: goal.subtasks.length > 0 ? 'pointer' : 'default' 
+                              }}
+                              onClick={() => goal.subtasks.length > 0 && toggleGoalCollapse(goal._id)}
+                            >
                               {goal.subtasks.length > 0 && (
                                 <button
                                   type="button"
-                                  onClick={() => toggleGoalCollapse(goal._id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleGoalCollapse(goal._id);
+                                  }}
                                   style={{
                                     border: 'none',
                                     background: 'none',
@@ -588,10 +600,7 @@ const WeekScheduler = () => {
                                   <ChevronDown size={18} />
                                 </button>
                               )}
-                              <div
-                                onClick={() => goal.subtasks.length > 0 && toggleGoalCollapse(goal._id)}
-                                style={{ cursor: goal.subtasks.length > 0 ? 'pointer' : 'default' }}
-                              >
+                              <div style={{ flex: 1 }}>
                                 <h4 style={{ fontSize: '17px', textDecoration: goal.completed ? 'line-through' : 'none' }}>
                                   {goal.title}
                                 </h4>
@@ -643,8 +652,22 @@ const WeekScheduler = () => {
                       </div>
 
                       {/* Subtasks List */}
-                      {((goal.subtasks.length > 0 && !collapsedGoals[goal._id]) || addingSubtaskGoalId === goal._id) ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                      {(goal.subtasks.length > 0 || addingSubtaskGoalId === goal._id) ? (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          background: 'rgba(255,255,255,0.01)',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-light)',
+                          overflow: 'hidden',
+                          transition: 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease, margin 0.3s ease, opacity 0.3s ease',
+                          maxHeight: (goal.subtasks.length > 0 && !collapsedGoals[goal._id]) || addingSubtaskGoalId === goal._id ? '1000px' : '0px',
+                          padding: (goal.subtasks.length > 0 && !collapsedGoals[goal._id]) || addingSubtaskGoalId === goal._id ? '12px' : '0px 12px',
+                          marginTop: (goal.subtasks.length > 0 && !collapsedGoals[goal._id]) || addingSubtaskGoalId === goal._id ? '12px' : '0px',
+                          opacity: (goal.subtasks.length > 0 && !collapsedGoals[goal._id]) || addingSubtaskGoalId === goal._id ? 1 : 0,
+                          pointerEvents: (goal.subtasks.length > 0 && !collapsedGoals[goal._id]) || addingSubtaskGoalId === goal._id ? 'auto' : 'none'
+                        }}>
                           {goal.subtasks.map((sub) => {
                             const isEditingThisSub = editingSubtask && editingSubtask.goalId === goal._id && editingSubtask.subtaskId === sub._id;
                             
