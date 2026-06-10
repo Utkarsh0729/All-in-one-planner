@@ -73,140 +73,160 @@ const Dashboard = () => {
 
         const headers = { Authorization: `Bearer ${token}` };
 
-        // 1. Fetch Profile
-        try {
-          const res = await fetch(`${API_URL}/profile`, { headers });
-          if (res.ok) {
-            const profileData = await res.json();
-            calorieTarget = profileData.targetCalories || 2000;
-          }
-        } catch (e) {
-          console.error('Error fetching profile targets:', e);
-        }
-
-        // 2. Fetch Nutrition Eaten Today
-        try {
-          const res = await fetch(`${API_URL}/nutrition/${todayStr}`, { headers });
-          if (res.ok) {
-            const nutritionData = await res.json();
-            caloriesEaten = nutritionData.totalCalories || 0;
-          }
-        } catch (e) {
-          console.error('Error fetching nutrition logs:', e);
-        }
-
-        // 3. Fetch Workout Today
-        try {
-          const res = await fetch(`${API_URL}/workouts/${todayStr}`, { headers });
-          if (res.ok) {
-            const workoutData = await res.json();
-            workoutCompleted = workoutData.exercises ? workoutData.exercises.filter(ex => ex.completed).length : 0;
-            workoutTotal = workoutData.exercises ? workoutData.exercises.length : 0;
-            if (workoutData.skipped) {
-              workoutStatus = 'Workout Skipped';
-            } else if (workoutTotal > 0) {
-              workoutStatus = `${workoutCompleted}/${workoutTotal} exercises done`;
+        // Define fetching sub-jobs to run in parallel
+        const loadProfile = async () => {
+          try {
+            const res = await fetch(`${API_URL}/profile`, { headers });
+            if (res.ok) {
+              const profileData = await res.json();
+              calorieTarget = profileData.targetCalories || 2000;
             }
+          } catch (e) {
+            console.error('Error fetching profile targets:', e);
           }
-        } catch (e) {
-          console.error('Error fetching workout logs:', e);
-        }
+        };
 
-        // 4. Fetch Routine Today
-        try {
-          const res = await fetch(`${API_URL}/routines/${todayStr}`, { headers });
-          if (res.ok) {
-            const routineData = await res.json();
-            if (routineData.activities) {
-              routineFilledHours = routineData.activities.reduce((acc, curr) => acc + (Number(curr.duration) || 0), 0);
-              routineFilledHours = Number(routineFilledHours.toFixed(1));
+        const loadNutrition = async () => {
+          try {
+            const res = await fetch(`${API_URL}/nutrition/${todayStr}`, { headers });
+            if (res.ok) {
+              const nutritionData = await res.json();
+              caloriesEaten = nutritionData.totalCalories || 0;
             }
+          } catch (e) {
+            console.error('Error fetching nutrition logs:', e);
           }
-        } catch (e) {
-          console.error('Error fetching routine logs:', e);
-        }
+        };
 
-        // 5. Fetch Notes Count
-        try {
-          const res = await fetch(`${API_URL}/notes`, { headers });
-          if (res.ok) {
-            const notesData = await res.json();
-            notesCount = notesData.length || 0;
+        const loadWorkout = async () => {
+          try {
+            const res = await fetch(`${API_URL}/workouts/${todayStr}`, { headers });
+            if (res.ok) {
+              const workoutData = await res.json();
+              workoutCompleted = workoutData.exercises ? workoutData.exercises.filter(ex => ex.completed).length : 0;
+              workoutTotal = workoutData.exercises ? workoutData.exercises.length : 0;
+              if (workoutData.skipped) {
+                workoutStatus = 'Workout Skipped';
+              } else if (workoutTotal > 0) {
+                workoutStatus = `${workoutCompleted}/${workoutTotal} exercises done`;
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching workout logs:', e);
           }
-        } catch (e) {
-          console.error('Error fetching notes:', e);
-        }
+        };
 
-        // 6. Fetch Routine Insights (Focus Score, Productivity Score)
-        try {
-          const res = await fetch(`${API_URL}/routines/insights`, { headers });
-          if (res.ok) {
-            const routineInsights = await res.json();
-            if (routineInsights && routineInsights.hasData !== false) {
-              focusScore = routineInsights.focusScore || 0;
-              productivityScore = routineInsights.weeklyProductivityScore || 0;
+        const loadRoutine = async () => {
+          try {
+            const res = await fetch(`${API_URL}/routines/${todayStr}`, { headers });
+            if (res.ok) {
+              const routineData = await res.json();
+              if (routineData.activities) {
+                routineFilledHours = routineData.activities.reduce((acc, curr) => acc + (Number(curr.duration) || 0), 0);
+                routineFilledHours = Number(routineFilledHours.toFixed(1));
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching routine logs:', e);
+          }
+        };
+
+        const loadNotesCount = async () => {
+          try {
+            const res = await fetch(`${API_URL}/notes`, { headers });
+            if (res.ok) {
+              const notesData = await res.json();
+              notesCount = notesData.length || 0;
+            }
+          } catch (e) {
+            console.error('Error fetching notes:', e);
+          }
+        };
+
+        const loadRoutineInsights = async () => {
+          try {
+            const res = await fetch(`${API_URL}/routines/insights`, { headers });
+            if (res.ok) {
+              const routineInsights = await res.json();
+              if (routineInsights && routineInsights.hasData !== false) {
+                focusScore = routineInsights.focusScore || 0;
+                productivityScore = routineInsights.weeklyProductivityScore || 0;
+                
+                if (routineInsights.insights) {
+                  rawRecommendations.push({
+                    source: 'Routine',
+                    text: 'Check routine: ' + routineInsights.insights.split('\n')[0].replace(/[*#]/g, '').trim(),
+                    type: 'tip'
+                  });
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching routine insights:', e);
+          }
+        };
+
+        const loadNutritionAnalytics = async () => {
+          try {
+            const res = await fetch(`${API_URL}/nutrition/analytics/summary`, { headers });
+            if (res.ok) {
+              const nutritionAnalytics = await res.json();
+              nutritionAdherence = nutritionAnalytics.weeklyAdherenceScore || 0;
               
-              if (routineInsights.insights) {
-                // Add AI routine suggestions
-                rawRecommendations.push({
-                  source: 'Routine',
-                  text: 'Check routine: ' + routineInsights.insights.split('\n')[0].replace(/[*#]/g, '').trim(),
-                  type: 'tip'
+              if (nutritionAnalytics.suggestions && Array.isArray(nutritionAnalytics.suggestions)) {
+                nutritionAnalytics.suggestions.forEach(s => {
+                  rawRecommendations.push({
+                    source: 'Nutrition',
+                    text: s,
+                    type: 'alert'
+                  });
                 });
               }
             }
+          } catch (e) {
+            console.error('Error fetching nutrition analytics:', e);
           }
-        } catch (e) {
-          console.error('Error fetching routine insights:', e);
-        }
+        };
 
-        // 7. Fetch Nutrition Analytics
-        try {
-          const res = await fetch(`${API_URL}/nutrition/analytics/summary`, { headers });
-          if (res.ok) {
-            const nutritionAnalytics = await res.json();
-            nutritionAdherence = nutritionAnalytics.weeklyAdherenceScore || 0;
-            
-            if (nutritionAnalytics.suggestions && Array.isArray(nutritionAnalytics.suggestions)) {
-              nutritionAnalytics.suggestions.forEach(s => {
-                rawRecommendations.push({
-                  source: 'Nutrition',
-                  text: s,
-                  type: 'alert'
+        const loadGoalsAnalytics = async () => {
+          try {
+            const res = await fetch(`${API_URL}/week-goals/analytics/summary`, { headers });
+            if (res.ok) {
+              const goalsAnalytics = await res.json();
+              goalCompletionRate = goalsAnalytics.goalCompletionPct || 0;
+              workoutStreak = goalsAnalytics.streaks?.workoutStreak || 0;
+              healthyEatingStreak = goalsAnalytics.streaks?.healthyEatingStreak || 0;
+              productivityStreak = goalsAnalytics.streaks?.productivityStreak || 0;
+              goalCompletionStreak = goalsAnalytics.streaks?.goalCompletionStreak || 0;
+              weeklyProductiveHours = goalsAnalytics.productiveHoursThisWeek || 0;
+              weeklyWorkoutsCompleted = goalsAnalytics.workoutSessionsThisWeek || 0;
+
+              if (goalsAnalytics.insights && Array.isArray(goalsAnalytics.insights)) {
+                goalsAnalytics.insights.forEach(ins => {
+                  rawRecommendations.push({
+                    source: 'Goals & Consistency',
+                    text: ins,
+                    type: 'milestone'
+                  });
                 });
-              });
+              }
             }
+          } catch (e) {
+            console.error('Error fetching goals analytics:', e);
           }
-        } catch (e) {
-          console.error('Error fetching nutrition analytics:', e);
-        }
+        };
 
-        // 8. Fetch Goals Analytics & Streaks
-        try {
-          const res = await fetch(`${API_URL}/week-goals/analytics/summary`, { headers });
-          if (res.ok) {
-            const goalsAnalytics = await res.json();
-            goalCompletionRate = goalsAnalytics.goalCompletionPct || 0;
-            workoutStreak = goalsAnalytics.streaks?.workoutStreak || 0;
-            healthyEatingStreak = goalsAnalytics.streaks?.healthyEatingStreak || 0;
-            productivityStreak = goalsAnalytics.streaks?.productivityStreak || 0;
-            goalCompletionStreak = goalsAnalytics.streaks?.goalCompletionStreak || 0;
-            weeklyProductiveHours = goalsAnalytics.productiveHoursThisWeek || 0;
-            weeklyWorkoutsCompleted = goalsAnalytics.workoutSessionsThisWeek || 0;
-
-            if (goalsAnalytics.insights && Array.isArray(goalsAnalytics.insights)) {
-              goalsAnalytics.insights.forEach(ins => {
-                rawRecommendations.push({
-                  source: 'Goals & Consistency',
-                  text: ins,
-                  type: 'milestone'
-                });
-              });
-            }
-          }
-        } catch (e) {
-          console.error('Error fetching goals analytics:', e);
-        }
+        // Fire all fetches in parallel to eliminate blocking sequential request lag
+        await Promise.all([
+          loadProfile(),
+          loadNutrition(),
+          loadWorkout(),
+          loadRoutine(),
+          loadNotesCount(),
+          loadRoutineInsights(),
+          loadNutritionAnalytics(),
+          loadGoalsAnalytics()
+        ]);
 
         // Determine maximum active streak and its label
         const maxStreak = Math.max(workoutStreak, healthyEatingStreak, productivityStreak);
@@ -288,7 +308,7 @@ const Dashboard = () => {
   const caloriesExceeded = data.caloriesEaten > data.calorieTarget ? data.caloriesEaten - data.calorieTarget : 0;
 
   return (
-    <div className="main-content">
+    <div className="main-content page-fade-in">
       {/* Dashboard Top Header */}
       <div className="page-header">
         <div>
@@ -317,8 +337,19 @@ const Dashboard = () => {
       </div>
 
       {loading ? (
-        <div style={{ color: 'var(--text-muted)', padding: '40px 0', textAlign: 'center' }}>
-          Assembling intelligence command metrics...
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }} className="page-fade-in">
+          {/* KPI Cards Skeleton Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
+            {[1, 2, 3, 4, 5, 6].map(n => (
+              <div key={n} className="card skeleton" style={{ height: '110px', border: 'none' }} />
+            ))}
+          </div>
+          
+          {/* Two Column Layout Skeleton */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
+            <div className="card skeleton" style={{ height: '340px', border: 'none' }} />
+            <div className="card skeleton" style={{ height: '340px', border: 'none' }} />
+          </div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
