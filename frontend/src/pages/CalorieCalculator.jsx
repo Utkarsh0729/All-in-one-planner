@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import OnboardingModal from '../components/OnboardingModal';
 import { 
   Utensils, Plus, Trash2, Calendar, Database, Star, Trophy, Sparkles, 
-  TrendingUp, Heart, Info, ChevronLeft, ChevronRight
+  TrendingUp, Heart, Info, ChevronLeft, ChevronRight, Pencil, Check, X
 } from 'lucide-react';
 
 const CalorieCalculator = () => {
@@ -69,6 +69,21 @@ const CalorieCalculator = () => {
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState('');
   const [sourceMessage, setSourceMessage] = useState('');
+
+  // Inline quantity editing state
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editingQty, setEditingQty] = useState('');
+
+  // Dismissed frequent foods (persisted in localStorage)
+  const [dismissedFoods, setDismissedFoods] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('dismissedFoods') || '[]'); } catch { return []; }
+  });
+
+  const dismissFrequentFood = (foodName) => {
+    const updated = [...dismissedFoods, foodName.toLowerCase()];
+    setDismissedFoods(updated);
+    localStorage.setItem('dismissedFoods', JSON.stringify(updated));
+  };
 
   const fetchAnalyticsSummary = useCallback(async () => {
     setLoadingAnalytics(true);
@@ -207,6 +222,28 @@ const CalorieCalculator = () => {
     } catch (err) {
       setError('Failed to delete item.');
       console.error(err);
+    }
+  };
+
+  // Update quantity of a logged food item
+  const handleUpdateItemQuantity = async (itemId, newQty) => {
+    if (!newQty || isNaN(Number(newQty)) || Number(newQty) <= 0) return;
+    try {
+      const res = await fetch(`${API_URL}/nutrition/${date}/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ quantity: Number(newQty) })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setLog(data);
+      fetchAnalyticsSummary();
+    } catch (err) {
+      setError('Failed to update quantity.');
+      console.error(err);
+    } finally {
+      setEditingItemId(null);
+      setEditingQty('');
     }
   };
 
@@ -499,12 +536,29 @@ const CalorieCalculator = () => {
                     value={unit}
                     onChange={(e) => setUnit(e.target.value)}
                   >
-                    <option value="gm">grams (gm)</option>
-                    <option value="ml">milliliters (ml)</option>
-                    <option value="piece">pieces</option>
-                    <option value="bowl">bowl(s)</option>
-                    <option value="cup">cup(s)</option>
-                    <option value="plate">plate(s)</option>
+                    <optgroup label="Weight">
+                      <option value="gm">grams (gm)</option>
+                      <option value="kg">kilograms (kg)</option>
+                    </optgroup>
+                    <optgroup label="Volume">
+                      <option value="ml">milliliters (ml)</option>
+                      <option value="l">litres (l)</option>
+                    </optgroup>
+                    <optgroup label="Count / Whole">
+                      <option value="whole">whole (fruit/item)</option>
+                      <option value="piece">piece(s)</option>
+                      <option value="slice">slice(s)</option>
+                    </optgroup>
+                    <optgroup label="Measures">
+                      <option value="cup">cup(s)</option>
+                      <option value="bowl">bowl(s)</option>
+                      <option value="plate">plate(s)</option>
+                      <option value="tbsp">tablespoon (tbsp)</option>
+                      <option value="tsp">teaspoon (tsp)</option>
+                      <option value="scoop">scoop</option>
+                      <option value="handful">handful</option>
+                      <option value="serving">serving</option>
+                    </optgroup>
                   </select>
                 </div>
                 <button type="submit" disabled={adding} className="btn btn-primary" style={{ padding: '12px 18px' }}>
@@ -673,30 +727,56 @@ const CalorieCalculator = () => {
             </div>
 
             {/* Recent Food Pills (Smart Fill shortcut) */}
-            {recentFoods.length > 0 && (
+            {recentFoods.filter(f => !dismissedFoods.includes(f.name.toLowerCase())).length > 0 && (
               <div className="card" style={{ padding: '16px 20px' }}>
                 <h4 style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Database size={13} className="text-cyan" /> Frequently Eaten (Click to Autofill)
+                  <Database size={13} className="text-cyan" /> Frequently Eaten
                 </h4>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {recentFoods.map((food, idx) => (
-                    <button
+                  {recentFoods
+                    .filter(f => !dismissedFoods.includes(f.name.toLowerCase()))
+                    .map((food, idx) => (
+                    <div
                       key={idx}
-                      type="button"
-                      className="btn btn-secondary"
                       style={{ 
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
                         fontSize: '11.5px', 
-                        padding: '6px 12px', 
+                        padding: '6px 10px 6px 12px', 
                         borderRadius: '20px', 
-                        background: 'rgba(6, 182, 212, 0.02)', 
-                        borderColor: 'rgba(6, 182, 212, 0.05)',
-                        color: 'var(--text-secondary)'
+                        background: 'rgba(6, 182, 212, 0.04)', 
+                        border: '1px solid rgba(6, 182, 212, 0.12)',
+                        color: 'var(--text-secondary)',
+                        transition: 'all 0.15s ease',
+                        cursor: 'default'
                       }}
-                      onClick={() => fillFormFromRecent(food)}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(6, 182, 212, 0.1)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(6, 182, 212, 0.04)'}
                       title={`Calories: ${food.calories}kcal | P: ${food.protein}g`}
                     >
-                      {food.name} ({food.quantity}{food.unit})
-                    </button>
+                      <span
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => fillFormFromRecent(food)}
+                      >
+                        {food.name} ({food.quantity}{food.unit})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => dismissFrequentFood(food.name)}
+                        title="Remove from frequently eaten"
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          color: 'var(--text-muted)', padding: '0 2px',
+                          display: 'flex', alignItems: 'center',
+                          transition: 'color 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-red)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -712,30 +792,80 @@ const CalorieCalculator = () => {
                   ))}
                 </div>
               ) : log.items && log.items.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {log.items.map((item) => (
-                    <div key={item._id} className="flex-between" style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-light)', borderRadius: '8px' }}>
-                      <div>
+                    <div
+                      key={item._id}
+                      style={{
+                        padding: '12px 16px',
+                        background: 'rgba(255,255,255,0.01)',
+                        border: '1px solid var(--border-light)',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'background 0.15s ease, border-color 0.15s ease'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = 'rgba(6,182,212,0.04)';
+                        e.currentTarget.style.borderColor = 'rgba(6,182,212,0.18)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.01)';
+                        e.currentTarget.style.borderColor = 'var(--border-light)';
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <strong style={{ fontSize: '15px' }}>{item.name}</strong>
-                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                          {item.quantity} {item.unit} | P: {item.protein}g | C: {item.carbs}g | F: {item.fat}g | Fiber: {item.fiber || 0}g
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          {editingItemId === item._id ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <input
+                                type="number"
+                                autoFocus
+                                value={editingQty}
+                                onChange={e => setEditingQty(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleUpdateItemQuantity(item._id, editingQty);
+                                  if (e.key === 'Escape') { setEditingItemId(null); setEditingQty(''); }
+                                }}
+                                style={{ width: '64px', padding: '2px 6px', fontSize: '12px', borderRadius: '4px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(6,182,212,0.4)', color: 'var(--text-primary)', outline: 'none' }}
+                              />
+                              <span>{item.unit}</span>
+                              <button type="button" onClick={() => handleUpdateItemQuantity(item._id, editingQty)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-emerald)', padding: '0 2px' }}><Check size={13} /></button>
+                              <button type="button" onClick={() => { setEditingItemId(null); setEditingQty(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0 2px' }}><X size={13} /></button>
+                            </span>
+                          ) : (
+                            <span
+                              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => { setEditingItemId(item._id); setEditingQty(String(item.quantity)); }}
+                              title="Click to edit quantity"
+                            >
+                              {item.quantity} {item.unit}
+                              <Pencil size={10} style={{ opacity: 0.5 }} />
+                            </span>
+                          )}
+                          <span>| P: {item.protein}g | C: {item.carbs}g | F: {item.fat}g | Fiber: {item.fiber || 0}g</span>
                         </div>
                       </div>
-                      <div className="gap-10">
-                        <span className="text-cyan" style={{ fontWeight: '600', fontSize: '15px' }}>{item.calories} kcal</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '12px' }}>
+                        <span className="text-cyan" style={{ fontWeight: '600', fontSize: '15px', marginRight: '4px' }}>{item.calories} kcal</span>
                         
                         <button
                           onClick={() => handleSaveItemAsFavorite(item)}
                           title="Save this meal item to favorites"
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', padding: '6px', color: 'var(--text-secondary)' }}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', padding: '6px', color: 'var(--text-secondary)', transition: 'color 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
                         >
                           <Star size={15} />
                         </button>
                         
                         <button 
                           onClick={() => handleDeleteItem(item._id)} 
-                          className="btn-danger" 
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', padding: '6px' }}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', padding: '6px', color: 'var(--text-muted)', transition: 'color 0.15s' }}
+                          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-red)'}
+                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                         >
                           <Trash2 size={16} />
                         </button>

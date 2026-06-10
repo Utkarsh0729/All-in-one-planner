@@ -14,11 +14,20 @@ const getUnitMultiplier = (quantity, unit) => {
   if (lowerUnit === 'g' || lowerUnit === 'gm' || lowerUnit === 'grams') {
     return quantity / 100;
   }
-  if (lowerUnit === 'ml') {
+  if (lowerUnit === 'kg') {
+    return (quantity * 1000) / 100; // kg -> grams
+  }
+  if (lowerUnit === 'ml' || lowerUnit === 'milliliter') {
     return quantity / 100;
   }
-  if (lowerUnit === 'piece' || lowerUnit === 'pieces') {
-    return quantity * 0.6; // Average piece ~60g
+  if (lowerUnit === 'l' || lowerUnit === 'litre' || lowerUnit === 'liter') {
+    return (quantity * 1000) / 100;
+  }
+  if (lowerUnit === 'piece' || lowerUnit === 'pieces' || lowerUnit === 'nos') {
+    return quantity * 0.6; // Average small piece ~60g
+  }
+  if (lowerUnit === 'whole') {
+    return quantity * 1.5; // e.g. 1 whole mango ~150g
   }
   if (lowerUnit === 'bowl' || lowerUnit === 'bowls') {
     return quantity * 3.0; // Average bowl ~300g
@@ -28,6 +37,24 @@ const getUnitMultiplier = (quantity, unit) => {
   }
   if (lowerUnit === 'plate' || lowerUnit === 'plates') {
     return quantity * 4.0; // Average plate ~400g
+  }
+  if (lowerUnit === 'tbsp' || lowerUnit === 'tablespoon') {
+    return quantity * 0.15; // ~15g
+  }
+  if (lowerUnit === 'tsp' || lowerUnit === 'teaspoon') {
+    return quantity * 0.05; // ~5g
+  }
+  if (lowerUnit === 'scoop') {
+    return quantity * 0.3; // ~30g per scoop (protein powder etc)
+  }
+  if (lowerUnit === 'handful') {
+    return quantity * 0.3; // ~30g handful
+  }
+  if (lowerUnit === 'slice' || lowerUnit === 'slices') {
+    return quantity * 0.3; // ~30g per slice
+  }
+  if (lowerUnit === 'serving' || lowerUnit === 'servings') {
+    return quantity * 1.0; // 1 serving = 100g base
   }
   return quantity; // Default fallback
 };
@@ -577,6 +604,52 @@ router.post('/:date/quick-add', protect, async (req, res) => {
       fat: Number(fat) || 0,
       fiber: Number(fiber) || 0
     });
+
+    await log.save();
+    res.json(log);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @desc    Update quantity of a logged food item (re-calculates macros)
+// @route   PATCH /api/nutrition/:date/:itemId
+// @access  Private
+router.patch('/:date/:itemId', protect, async (req, res) => {
+  const { date, itemId } = req.params;
+  const { quantity } = req.body;
+
+  if (!quantity || isNaN(Number(quantity)) || Number(quantity) <= 0) {
+    return res.status(400).json({ message: 'Valid quantity is required' });
+  }
+
+  try {
+    const log = await NutritionLog.findOne({ user: req.user._id, date });
+    if (!log) return res.status(404).json({ message: 'Nutrition log not found' });
+
+    const item = log.items.id(itemId);
+    if (!item) return res.status(404).json({ message: 'Food item not found' });
+
+    // Re-compute macros based on new quantity; original stored per 100g from cache
+    const cachedFood = await FoodCache.findOne({ name: item.name.trim().toLowerCase() });
+    if (cachedFood) {
+      const multiplier = getUnitMultiplier(Number(quantity), item.unit);
+      item.quantity = Number(quantity);
+      item.calories = Math.round(cachedFood.calories * multiplier);
+      item.protein = Math.round(cachedFood.protein * multiplier * 10) / 10;
+      item.carbs = Math.round(cachedFood.carbs * multiplier * 10) / 10;
+      item.fat = Math.round(cachedFood.fat * multiplier * 10) / 10;
+      item.fiber = Math.round((cachedFood.fiber || 0) * multiplier * 10) / 10;
+    } else {
+      // If no cache, scale proportionally from existing values
+      const ratio = Number(quantity) / item.quantity;
+      item.calories = Math.round(item.calories * ratio);
+      item.protein = Math.round(item.protein * ratio * 10) / 10;
+      item.carbs = Math.round(item.carbs * ratio * 10) / 10;
+      item.fat = Math.round(item.fat * ratio * 10) / 10;
+      item.fiber = Math.round((item.fiber || 0) * ratio * 10) / 10;
+      item.quantity = Number(quantity);
+    }
 
     await log.save();
     res.json(log);
