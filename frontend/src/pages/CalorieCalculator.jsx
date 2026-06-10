@@ -178,6 +178,17 @@ const CalorieCalculator = () => {
     load();
   }, [fetchLogAndProfile]);
 
+  useEffect(() => {
+    if (selectedMealDetail) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedMealDetail]);
+
   // Log food items
   const handleAddFood = async (e) => {
     e.preventDefault();

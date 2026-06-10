@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { X } from 'lucide-react';
@@ -7,6 +7,17 @@ const OnboardingModal = ({ section, isOpen, onClose }) => {
   const { token, updateOnboardingStatus, API_URL } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
 
   // Nutrition state
   const [nutritionForm, setNutritionForm] = useState({
