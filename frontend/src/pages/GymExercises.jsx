@@ -470,6 +470,24 @@ const GymExercises = () => {
     }
   };
 
+  // Toggle rest day
+  const handleToggleRestDay = async () => {
+    try {
+      const res = await fetch(`${API_URL}/workouts/${date}/rest-day`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setLog(data);
+      fetchHistoryAnalytics();
+      fetchAnalyticsSummary();
+    } catch (err) {
+      setError('Failed to toggle rest day.');
+      console.error(err);
+    }
+  };
+
   // Add custom exercise
   const handleAddCustomExercise = async (e) => {
     e.preventDefault();
@@ -934,7 +952,7 @@ const GymExercises = () => {
             {/* Main Workout Panel */}
             <div>
               {/* Descriptive empty state when training board is empty */}
-              {(!log.exercises || log.exercises.length === 0) && !showPromptGenerator && (
+              {(!log.exercises || log.exercises.length === 0) && !showPromptGenerator && !log.isRestDay && (
                 <div style={{ 
                   textAlign: 'center', 
                   padding: '60px 20px', 
@@ -957,12 +975,65 @@ const GymExercises = () => {
                       Start your fitness journey by generating your first workout.
                     </p>
                   </div>
-                  <button 
-                    className="btn btn-primary hover-scale active-press"
-                    onClick={() => setShowPromptGenerator(true)}
-                    style={{ padding: '10px 24px', fontSize: '13.5px', marginTop: '4px', backgroundColor: 'var(--accent-purple)', borderColor: 'var(--accent-purple)' }}
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    <button 
+                      className="btn btn-primary hover-scale active-press"
+                      onClick={() => setShowPromptGenerator(true)}
+                      style={{ padding: '10px 24px', fontSize: '13.5px', backgroundColor: 'var(--accent-purple)', borderColor: 'var(--accent-purple)' }}
+                    >
+                      <Sparkles size={16} /> Open AI Fitness Coach
+                    </button>
+                    <button 
+                      className="btn btn-secondary hover-scale"
+                      onClick={handleToggleRestDay}
+                      style={{ padding: '10px 24px', fontSize: '13.5px' }}
+                    >
+                      🛌 Mark as Rest Day
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Rest Day Card */}
+              {log.isRestDay && (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '48px 24px',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.04), rgba(16, 185, 129, 0.01))',
+                  borderRadius: 'var(--radius-lg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '16px',
+                  marginBottom: '24px'
+                }}>
+                  <div style={{ fontSize: '52px' }}>🛌</div>
+                  <div>
+                    <h3 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '8px', color: 'var(--accent-emerald)' }}>Rest Day</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '14.5px', maxWidth: '460px', margin: '0 auto', lineHeight: '1.6' }}>
+                      Recovery is part of the process. Your muscles are repairing and growing stronger. Stay hydrated, eat well, and come back stronger tomorrow.
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center', marginTop: '8px' }}>
+                    {['💧 Stay Hydrated', '🥗 Eat Nutritious', '😴 Sleep 8hrs', '🧘 Light Stretching'].map(tip => (
+                      <span key={tip} style={{
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        background: 'rgba(16, 185, 129, 0.08)',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        color: 'var(--accent-emerald)',
+                        fontSize: '12.5px',
+                        fontWeight: '600'
+                      }}>{tip}</span>
+                    ))}
+                  </div>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleToggleRestDay}
+                    style={{ marginTop: '8px', fontSize: '13px', padding: '8px 20px' }}
                   >
-                    <Sparkles size={16} /> Open AI Fitness Coach
+                    Cancel Rest Day
                   </button>
                 </div>
               )}
@@ -1107,13 +1178,9 @@ const GymExercises = () => {
                     </div>
                   )}
 
-                  {/* Stopwatch and Volume stats row */}
+                  {/* Volume stats row */}
                   {log.exercises && log.exercises.length > 0 && !log.skipped && (
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center', width: '100%', flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-                        <Timer size={15} className="text-purple" />
-                        <span>Duration: <strong style={{ fontFamily: 'monospace' }}>{formatStopwatch(activeSeconds)}</strong></span>
-                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
                         <Activity size={15} className="text-purple" />
                         <span>Volume: <strong>{calculateTotalVolume()} kg</strong></span>

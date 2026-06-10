@@ -767,6 +767,31 @@ router.post('/:date/skip', protect, async (req, res) => {
   }
 });
 
+// @desc    Toggle rest day flag for a date
+// @route   POST /api/workouts/:date/rest-day
+// @access  Private
+router.post('/:date/rest-day', protect, async (req, res) => {
+  const { date } = req.params;
+
+  try {
+    let log = await WorkoutLog.findOne({ user: req.user._id, date });
+    if (!log) {
+      log = new WorkoutLog({ user: req.user._id, date, exercises: [] });
+    }
+
+    log.isRestDay = !log.isRestDay;
+    // When marking as rest day, clear exercises and reset skip
+    if (log.isRestDay) {
+      log.exercises = [];
+      log.skipped = false;
+    }
+    await log.save();
+    res.json(log);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @desc    Add custom exercise to today's workout
 // @route   POST /api/workouts/:date/add
 // @access  Private
