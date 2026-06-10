@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   Clock, Calendar, Plus, Trash2, Sparkles, Brain, 
-  LayoutGrid, BarChart2, CheckCircle2, AlertTriangle, Activity
+  LayoutGrid, BarChart2, CheckCircle2, AlertTriangle, Activity,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 // Categories Configuration
@@ -334,6 +335,26 @@ const CategoryDistribution = ({ dayStats }) => {
 const RoutineAnalyser = () => {
   const { token, API_URL } = useAuth();
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const dateInputRef = useRef(null);
+
+  const changeDay = (direction) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + direction);
+    setDate(d.toISOString().split('T')[0]);
+  };
+
+  const formatDateLabel = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.round((d - today) / 86400000);
+    const dayName = d.toLocaleDateString(undefined, { weekday: 'short' });
+    const dateLabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if (diff === 0) return `Today, ${dateLabel}`;
+    if (diff === -1) return `Yesterday, ${dateLabel}`;
+    if (diff === 1) return `Tomorrow, ${dateLabel}`;
+    return `${dayName}, ${dateLabel}`;
+  };
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -544,15 +565,37 @@ const RoutineAnalyser = () => {
           <h1 className="page-title">Daily Activity Analyzer</h1>
           <p className="page-subtitle">Log activities, analyze productive focus, and optimize schedules</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Calendar size={18} className="text-orange" />
-          <input 
-            type="date" 
-            className="input-field" 
-            style={{ width: '160px', padding: '8px 12px' }}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="btn btn-secondary" onClick={() => changeDay(-1)} style={{ padding: '8px' }} title="Previous day">
+            <ChevronLeft size={18} />
+          </button>
+          <div
+            onClick={() => dateInputRef.current?.showPicker()}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              cursor: 'pointer', padding: '7px 14px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid var(--border-light)',
+              borderRadius: 'var(--radius)',
+              fontWeight: '600', fontSize: '14px',
+              userSelect: 'none', position: 'relative',
+              transition: 'var(--transition)'
+            }}
+            title="Click to pick a date"
+          >
+            <Calendar size={15} className="text-orange" />
+            <span>{formatDateLabel(date)}</span>
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+            />
+          </div>
+          <button className="btn btn-secondary" onClick={() => changeDay(1)} style={{ padding: '8px' }} title="Next day">
+            <ChevronRight size={18} />
+          </button>
         </div>
       </div>
 

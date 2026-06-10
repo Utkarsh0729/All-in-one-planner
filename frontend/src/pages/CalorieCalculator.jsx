@@ -1,14 +1,34 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import OnboardingModal from '../components/OnboardingModal';
 import { 
   Utensils, Plus, Trash2, Calendar, Database, Star, Trophy, Sparkles, 
-  TrendingUp, Heart, Info 
+  TrendingUp, Heart, Info, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const CalorieCalculator = () => {
   const { user, token, API_URL } = useAuth();
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const dateInputRef = useRef(null);
+
+  const changeDay = (direction) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + direction);
+    setDate(d.toISOString().split('T')[0]);
+  };
+
+  const formatDateLabel = (dateStr) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.round((d - today) / 86400000);
+    const dayName = d.toLocaleDateString(undefined, { weekday: 'short' });
+    const dateLabel = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    if (diff === 0) return `Today, ${dateLabel}`;
+    if (diff === -1) return `Yesterday, ${dateLabel}`;
+    if (diff === 1) return `Tomorrow, ${dateLabel}`;
+    return `${dayName}, ${dateLabel}`;
+  };
   const [log, setLog] = useState({ items: [], totalCalories: 0, totalProtein: 0, totalCarbs: 0, totalFat: 0, totalFiber: 0 });
   const [profile, setProfile] = useState({ targetCalories: 2000, targetProtein: 150, targetCarbs: 200, targetFat: 60, targetFiber: 25 });
   
@@ -353,15 +373,37 @@ const CalorieCalculator = () => {
           </h1>
           <p className="page-subtitle">Personalized daily food logs, smart food presets, & AI-powered dietary insights</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Calendar size={18} className="text-cyan" />
-          <input 
-            type="date" 
-            className="input-field" 
-            style={{ width: '160px', padding: '8px 12px' }}
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button className="btn btn-secondary" onClick={() => changeDay(-1)} style={{ padding: '8px' }} title="Previous day">
+            <ChevronLeft size={18} />
+          </button>
+          <div
+            onClick={() => dateInputRef.current?.showPicker()}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              cursor: 'pointer', padding: '7px 14px',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid var(--border-light)',
+              borderRadius: 'var(--radius)',
+              fontWeight: '600', fontSize: '14px',
+              userSelect: 'none', position: 'relative',
+              transition: 'var(--transition)'
+            }}
+            title="Click to pick a date"
+          >
+            <Calendar size={15} className="text-cyan" />
+            <span>{formatDateLabel(date)}</span>
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+            />
+          </div>
+          <button className="btn btn-secondary" onClick={() => changeDay(1)} style={{ padding: '8px' }} title="Next day">
+            <ChevronRight size={18} />
+          </button>
         </div>
       </div>
 
