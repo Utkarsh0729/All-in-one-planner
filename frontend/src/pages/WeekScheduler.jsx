@@ -816,7 +816,7 @@ const WeekScheduler = () => {
                       { id: 'workout_7', name: '7-Day Workout Streak', description: 'Log completed exercises for 7 consecutive days', icon: '🔥' },
                       { id: 'consistency_30', name: '30-Day Consistency Badge', description: 'Maintain a 30-day streak in fitness, nutrition, or productivity', icon: '🏆' },
                       { id: 'tasks_100', name: '100 Completed Tasks', description: 'Successfully finish 100 goals or sub-task checklist items', icon: '⚡' },
-                      { id: 'first_month', name: 'First Month Completed', description: 'Stay active on Aegis Planner for a month or more', icon: '🌟' }
+                      { id: 'first_month', name: 'First Month Completed', description: 'Stay active on Sidekick for a month or more', icon: '🌟' }
                     ];
 
                     return allPossibleBadges.map((badge) => {

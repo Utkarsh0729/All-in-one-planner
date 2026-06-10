@@ -41,7 +41,7 @@ const Sidebar = () => {
     <aside className="sidebar">
       <div className="sidebar-logo">
         <Sparkles size={24} className="text-purple" />
-        <span>AEGIS <span>PLANNER</span></span>
+        <span>SIDEKICK <span>PLANNER</span></span>
       </div>
 
       <ul className="sidebar-menu">

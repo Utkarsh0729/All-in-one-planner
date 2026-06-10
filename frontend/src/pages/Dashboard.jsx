@@ -294,7 +294,7 @@ const Dashboard = () => {
         <div>
           <h1 className="page-title">Command Center</h1>
           <p className="page-subtitle">
-            Welcome back, {user ? user.name : 'Aegis Member'}! Here is your daily intelligence report.
+            Welcome back, {user ? user.name : 'Member'}! Here is your daily intelligence report.
           </p>
         </div>
         {data.currentStreak > 0 && (
