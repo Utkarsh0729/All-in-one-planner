@@ -1,9 +1,13 @@
 import mongoose from 'mongoose';
 
-const routineSlotSchema = new mongoose.Schema({
-  hour: { type: Number, required: true }, // 0 to 23
-  activity: { type: String, default: '' },
-  notes: { type: String, default: '' }
+const activitySchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  duration: { type: Number, required: true }, // duration in hours (e.g. 1.5, 3)
+  category: {
+    type: String,
+    enum: ['Study', 'Work', 'Fitness', 'Sleep', 'Entertainment', 'Social Media', 'Leisure', 'Other'],
+    required: true
+  }
 });
 
 const routineLogSchema = new mongoose.Schema(
@@ -17,7 +21,7 @@ const routineLogSchema = new mongoose.Schema(
       type: String, // YYYY-MM-DD
       required: true,
     },
-    slots: [routineSlotSchema],
+    activities: [activitySchema],
     // Auto-expiry TTL field to preserve free DB storage
     // It will be deleted exactly 14 days after creation
     expiresAt: {
