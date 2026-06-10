@@ -55,6 +55,10 @@ const GymExercises = () => {
   const [customReps, setCustomReps] = useState('10-12');
   const [customMuscles, setCustomMuscles] = useState('');
 
+  // Helper: capitalize first letter of every word
+  const toTitleCase = (str) =>
+    str.replace(/\b\w/g, (c) => c.toUpperCase());
+
   // Shifting variables
   const [hasUnmarkedYesterday, setHasUnmarkedYesterday] = useState(false);
   const [yesterdayDate, setYesterdayDate] = useState('');
@@ -1428,7 +1432,7 @@ const GymExercises = () => {
                     placeholder="e.g. Incline Bench Press"
                     className="input-field" 
                     value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
+                    onChange={(e) => setCustomName(toTitleCase(e.target.value))}
                   />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
@@ -1785,7 +1789,7 @@ const GymExercises = () => {
                   required 
                   className="input-field" 
                   value={editingExercise.name}
-                  onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, name: toTitleCase(e.target.value) })}
                 />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
