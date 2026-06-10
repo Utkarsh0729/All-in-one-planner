@@ -73,6 +73,28 @@ const CalorieCalculator = () => {
   // Inline quantity editing state
   const [editingItemId, setEditingItemId] = useState(null);
   const [editingQty, setEditingQty] = useState('');
+  const [selectedMealDetail, setSelectedMealDetail] = useState(null);
+
+  const normalizeUnit = (u) => {
+    if (!u) return 'gm';
+    const lower = u.toLowerCase().trim();
+    if (lower === 'g' || lower === 'grams' || lower === 'gm') return 'gm';
+    if (lower === 'kg' || lower === 'kilograms') return 'kg';
+    if (lower === 'ml' || lower === 'milliliter' || lower === 'milliliters') return 'ml';
+    if (lower === 'l' || lower === 'litre' || lower === 'liter' || lower === 'liters') return 'l';
+    if (lower === 'piece' || lower === 'pieces' || lower === 'nos') return 'piece';
+    if (lower === 'whole') return 'whole';
+    if (lower === 'bowl' || lower === 'bowls') return 'bowl';
+    if (lower === 'cup' || lower === 'cups') return 'cup';
+    if (lower === 'plate' || lower === 'plates') return 'plate';
+    if (lower === 'tbsp' || lower === 'tablespoon') return 'tbsp';
+    if (lower === 'tsp' || lower === 'teaspoon') return 'tsp';
+    if (lower === 'scoop' || lower === 'scoops') return 'scoop';
+    if (lower === 'handful' || lower === 'handfuls') return 'handful';
+    if (lower === 'slice' || lower === 'slices') return 'slice';
+    if (lower === 'serving' || lower === 'servings') return 'serving';
+    return 'gm';
+  };
 
   // Dismissed frequent foods (persisted in localStorage)
   const [dismissedFoods, setDismissedFoods] = useState(() => {
@@ -398,7 +420,7 @@ const CalorieCalculator = () => {
   const fillFormFromRecent = (food) => {
     setFoodName(food.name);
     setQuantity(food.quantity);
-    setUnit(food.unit);
+    setUnit(normalizeUnit(food.unit));
   };
 
   return (
@@ -804,8 +826,10 @@ const CalorieCalculator = () => {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        transition: 'background 0.15s ease, border-color 0.15s ease'
+                        transition: 'background 0.15s ease, border-color 0.15s ease',
+                        cursor: 'pointer'
                       }}
+                      onClick={() => setSelectedMealDetail(item)}
                       onMouseEnter={e => {
                         e.currentTarget.style.background = 'rgba(6,182,212,0.04)';
                         e.currentTarget.style.borderColor = 'rgba(6,182,212,0.18)';
@@ -819,7 +843,10 @@ const CalorieCalculator = () => {
                         <strong style={{ fontSize: '15px' }}>{item.name}</strong>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           {editingItemId === item._id ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span 
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <input
                                 type="number"
                                 autoFocus
@@ -832,13 +859,17 @@ const CalorieCalculator = () => {
                                 style={{ width: '64px', padding: '2px 6px', fontSize: '12px', borderRadius: '4px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(6,182,212,0.4)', color: 'var(--text-primary)', outline: 'none' }}
                               />
                               <span>{item.unit}</span>
-                              <button type="button" onClick={() => handleUpdateItemQuantity(item._id, editingQty)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-emerald)', padding: '0 2px' }}><Check size={13} /></button>
-                              <button type="button" onClick={() => { setEditingItemId(null); setEditingQty(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0 2px' }}><X size={13} /></button>
+                              <button type="button" onClick={(e) => { e.stopPropagation(); handleUpdateItemQuantity(item._id, editingQty); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-emerald)', padding: '0 2px' }}><Check size={13} /></button>
+                              <button type="button" onClick={(e) => { e.stopPropagation(); setEditingItemId(null); setEditingQty(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '0 2px' }}><X size={13} /></button>
                             </span>
                           ) : (
                             <span
                               style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                              onClick={() => { setEditingItemId(item._id); setEditingQty(String(item.quantity)); }}
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setEditingItemId(item._id); 
+                                setEditingQty(String(item.quantity)); 
+                              }}
                               title="Click to edit quantity"
                             >
                               {item.quantity} {item.unit}
@@ -848,27 +879,36 @@ const CalorieCalculator = () => {
                           <span>| P: {item.protein}g | C: {item.carbs}g | F: {item.fat}g | Fiber: {item.fiber || 0}g</span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '12px' }}>
+                      <div 
+                        style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '12px' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <span className="text-cyan" style={{ fontWeight: '600', fontSize: '15px', marginRight: '4px' }}>{item.calories} kcal</span>
                         
-                        <button
-                          onClick={() => handleSaveItemAsFavorite(item)}
-                          title="Save this meal item to favorites"
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', padding: '6px', color: 'var(--text-secondary)', transition: 'color 0.15s' }}
-                          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
-                        >
-                          <Star size={15} />
-                        </button>
+                         <button
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             handleSaveItemAsFavorite(item);
+                           }}
+                           title="Save this meal item to favorites"
+                           style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', padding: '6px', color: 'var(--text-secondary)', transition: 'color 0.15s' }}
+                           onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-orange)'}
+                           onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                         >
+                           <Star size={15} />
+                         </button>
                         
-                        <button 
-                          onClick={() => handleDeleteItem(item._id)} 
-                          style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', padding: '6px', color: 'var(--text-muted)', transition: 'color 0.15s' }}
-                          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-red)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                         <button 
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             handleDeleteItem(item._id);
+                           }} 
+                           style={{ border: 'none', background: 'none', cursor: 'pointer', display: 'flex', padding: '6px', color: 'var(--text-muted)', transition: 'color 0.15s' }}
+                           onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-red)'}
+                           onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                         >
+                           <Trash2 size={16} />
+                         </button>
                       </div>
                     </div>
                   ))}
@@ -1249,6 +1289,124 @@ const CalorieCalculator = () => {
           fetchLogAndProfile();
         }} 
       />
+
+      {selectedMealDetail && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(3px)',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+          onClick={() => setSelectedMealDetail(null)}
+        >
+          <div 
+            style={{
+              background: 'var(--bg-panel-solid)',
+              border: '1px solid var(--border-light)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '24px',
+              width: '90%',
+              maxWidth: '420px',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
+              position: 'relative',
+              animation: 'scaleUp 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-primary)', wordBreak: 'break-word', fontFamily: 'var(--font-display)', paddingRight: '20px' }}>
+                {selectedMealDetail.name}
+              </h3>
+              <button 
+                onClick={() => setSelectedMealDetail(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = 'var(--text-primary)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = 'var(--text-secondary)';
+                  e.currentTarget.style.background = 'none';
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Description / Nutrients */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Portion Logged:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{selectedMealDetail.quantity} {selectedMealDetail.unit}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Energy Content:</span>
+                <strong className="text-cyan">{selectedMealDetail.calories} kcal</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Protein:</span>
+                <strong style={{ color: 'var(--primary)' }}>{selectedMealDetail.protein} g</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Carbohydrates:</span>
+                <strong style={{ color: 'var(--accent-purple)' }}>{selectedMealDetail.carbs} g</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Fats:</span>
+                <strong style={{ color: 'var(--accent-orange)' }}>{selectedMealDetail.fat} g</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '8px' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Dietary Fiber:</span>
+                <strong style={{ color: 'var(--accent-emerald)' }}>{selectedMealDetail.fiber || 0} g</strong>
+              </div>
+            </div>
+
+            {/* Google Search Link Option */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <a 
+                href={`https://www.google.com/search?q=${encodeURIComponent(selectedMealDetail.name + ' nutritional content')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-secondary"
+                style={{ 
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  textDecoration: 'none',
+                  fontSize: '13px',
+                  width: '100%',
+                  justifyContent: 'center',
+                  padding: '10px 16px',
+                  fontWeight: '600'
+                }}
+              >
+                <Database size={14} className="text-cyan" /> Search Nutrition on Google
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
