@@ -281,6 +281,12 @@ const GymExercises = () => {
   };
 
   const handleUpdateSet = async (exerciseId, setIndex, field, value) => {
+    // Read the current exercise and set BEFORE any state update (avoid stale closure)
+    const exercise = log.exercises.find(e => e._id === exerciseId);
+    if (!exercise) return;
+    const currentSet = exercise.setDetails[setIndex];
+
+    // Optimistic UI update
     const updatedExercises = log.exercises.map(ex => {
       if (ex._id === exerciseId) {
         const updatedSets = ex.setDetails.map((s, idx) => {
@@ -297,9 +303,6 @@ const GymExercises = () => {
     });
 
     setLog(prev => ({ ...prev, exercises: updatedExercises }));
-
-    const exercise = log.exercises.find(e => e._id === exerciseId);
-    const currentSet = exercise.setDetails[setIndex];
 
     const bodyPayload = {
       setIndex,
@@ -322,17 +325,30 @@ const GymExercises = () => {
       
       setLog(data);
 
-      if (field === 'completed' && !currentSet.completed) {
-        // Retrieve exercise's specific restTime
-        const restSec = parseRestTimeToSeconds(exercise.restTime);
-        startRestTimer(restSec);
-      }
-
       // Sync analytics summaries
       fetchHistoryAnalytics();
       fetchAnalyticsSummary();
     } catch (err) {
       setError('Failed to update set details.');
+      console.error(err);
+      fetchWorkoutLog();
+    }
+  };
+
+  // Toggle all sets on an exercise atomically (uses dedicated /toggle backend endpoint)
+  const handleToggleAllSets = async (exerciseId) => {
+    try {
+      const res = await fetch(`${API_URL}/workouts/${date}/exercise/${exerciseId}/toggle`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setLog(data);
+      fetchHistoryAnalytics();
+      fetchAnalyticsSummary();
+    } catch (err) {
+      setError('Failed to toggle exercise completion.');
       console.error(err);
       fetchWorkoutLog();
     }
@@ -1121,11 +1137,8 @@ const GymExercises = () => {
                                 className={`checkbox-custom ${ex.completed ? 'checked' : ''}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!log.skipped && ex.setDetails) {
-                                    const targetState = !ex.completed;
-                                    ex.setDetails.forEach((_, sIdx) => {
-                                      handleUpdateSet(ex._id, sIdx, 'completed', targetState);
-                                    });
+                                  if (!log.skipped) {
+                                    handleToggleAllSets(ex._id);
                                   }
                                 }}
                               >
@@ -1537,70 +1550,7 @@ const GymExercises = () => {
         </div>
       )}
 
-      {/* Rest Timer Panel (Floating Toast) */}
-      {restTimeLeft > 0 && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          backgroundColor: '#0f0f16',
-          border: '2px solid var(--accent-purple, #a855f7)',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
-          padding: '16px 20px',
-          borderRadius: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          zIndex: 1000,
-          animation: 'slideUp 0.3s ease-out'
-        }}>
-          <Timer className="text-purple animate-pulse" size={24} />
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase' }}>Rest Timer</div>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary)', fontFamily: 'monospace' }}>
-              {restTimeLeft}s
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button 
-              className="btn btn-secondary" 
-              style={{ padding: '6px 10px', fontSize: '12px' }}
-              onClick={() => setRestTimeLeft(prev => prev + 30)}
-            >
-              +30s
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              style={{ padding: '6px 10px', fontSize: '12px' }}
-              onClick={() => setRestTimeLeft(prev => Math.max(0, prev - 30))}
-            >
-              -30s
-            </button>
-            <button 
-              className="btn btn-primary" 
-              style={{ padding: '6px' }}
-              onClick={() => setIsRestTimerRunning(p => !p)}
-            >
-              {isRestTimerRunning ? <Pause size={14} /> : <Play size={14} />}
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              style={{ padding: '6px' }}
-              onClick={() => setSoundEnabled(p => !p)}
-              title={soundEnabled ? "Mute audio beep" : "Unmute audio beep"}
-            >
-              {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              style={{ padding: '6px', color: 'var(--accent-red)' }}
-              onClick={() => { setRestTimeLeft(0); setIsRestTimerRunning(false); }}
-            >
-              <XCircle size={14} />
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* Edit Workout Metadata Modal */}
       {isMetadataModalOpen && (
