@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Sidebar from './components/Sidebar';
@@ -10,6 +9,7 @@ import GymExercises from './pages/GymExercises';
 import RoutineAnalyser from './pages/RoutineAnalyser';
 import WeekScheduler from './pages/WeekScheduler';
 import NotesTaker from './pages/NotesTaker';
+import NoteEditor from './pages/NoteEditor';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -45,6 +45,8 @@ const AppLayout = () => {
         <Route path="/routine" element={<RoutineAnalyser />} />
         <Route path="/scheduler" element={<WeekScheduler />} />
         <Route path="/notes" element={<NotesTaker />} />
+        <Route path="/notes/new" element={<NoteEditor />} />
+        <Route path="/notes/edit/:id" element={<NoteEditor />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

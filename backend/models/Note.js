@@ -23,6 +23,7 @@ const noteSchema = new mongoose.Schema(
     },
     checklist: [checklistItemSchema],
     links: [{ type: String }],
+    tags: [{ type: String }],
     isProtected: {
       type: Boolean,
       default: false,
@@ -30,6 +31,18 @@ const noteSchema = new mongoose.Schema(
     passwordHash: {
       type: String,
       default: null,
+    },
+    passwordHint: {
+      type: String,
+      default: '',
+    },
+    isPinned: {
+      type: Boolean,
+      default: false,
+    },
+    isFavorite: {
+      type: Boolean,
+      default: false,
     },
   },
   {

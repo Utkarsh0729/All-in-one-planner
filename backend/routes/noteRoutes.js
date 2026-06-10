@@ -6,7 +6,7 @@ import { encrypt, decrypt } from '../utils/crypto.js';
 
 const router = express.Router();
 
-// Helper to mask protected content
+// Helper to mask protected note content and checklists/links
 const maskNotes = (notes) => {
   return notes.map(note => {
     if (note.isProtected) {
@@ -15,9 +15,13 @@ const maskNotes = (notes) => {
         user: note.user,
         title: note.title,
         content: '🔒 Protected Content. Please enter password to unlock.',
-        checklist: [], // Hide checklist items if protected
-        links: [],     // Hide links if protected
+        checklist: [],
+        links: [],
+        tags: note.tags || [],
         isProtected: true,
+        passwordHint: note.passwordHint || '',
+        isPinned: note.isPinned || false,
+        isFavorite: note.isFavorite || false,
         createdAt: note.createdAt,
         updatedAt: note.updatedAt
       };
@@ -42,7 +46,7 @@ router.get('/', protect, async (req, res) => {
 // @route   POST /api/notes
 // @access  Private
 router.post('/', protect, async (req, res) => {
-  const { title, content, checklist, links, isProtected, password } = req.body;
+  const { title, content, checklist, links, tags, isProtected, password, passwordHint, isPinned, isFavorite } = req.body;
 
   if (!title) {
     return res.status(400).json({ message: 'Title is required' });
@@ -66,20 +70,30 @@ router.post('/', protect, async (req, res) => {
       content: finalContent,
       checklist: checklist || [],
       links: links || [],
+      tags: tags || [],
       isProtected: !!(isProtected && password),
-      passwordHash
+      passwordHash,
+      passwordHint: passwordHint || '',
+      isPinned: !!isPinned,
+      isFavorite: !!isFavorite
     });
 
     // Mask before returning if protected
     if (note.isProtected) {
       res.status(201).json({
         _id: note._id,
+        user: note.user,
         title: note.title,
         content: '🔒 Protected Content. Please enter password to unlock.',
         checklist: [],
         links: [],
+        tags: note.tags || [],
         isProtected: true,
-        createdAt: note.createdAt
+        passwordHint: note.passwordHint || '',
+        isPinned: note.isPinned || false,
+        isFavorite: note.isFavorite || false,
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt
       });
     } else {
       res.status(201).json(note);
@@ -119,7 +133,7 @@ router.post('/:id/unlock', protect, async (req, res) => {
     // Decrypt the note content
     const decryptedContent = decrypt(note.content, password);
 
-    // Return the full unlocked note object (including real checklist/links)
+    // Return the full unlocked note object
     res.json({
       _id: note._id,
       user: note.user,
@@ -127,7 +141,11 @@ router.post('/:id/unlock', protect, async (req, res) => {
       content: decryptedContent,
       checklist: note.checklist,
       links: note.links,
+      tags: note.tags || [],
       isProtected: true,
+      passwordHint: note.passwordHint || '',
+      isPinned: note.isPinned || false,
+      isFavorite: note.isFavorite || false,
       createdAt: note.createdAt,
       updatedAt: note.updatedAt
     });
@@ -141,7 +159,19 @@ router.post('/:id/unlock', protect, async (req, res) => {
 // @access  Private
 router.put('/:id', protect, async (req, res) => {
   const { id } = req.params;
-  const { title, content, checklist, links, isProtected, password, currentPassword } = req.body;
+  const {
+    title,
+    content,
+    checklist,
+    links,
+    tags,
+    isProtected,
+    password,
+    passwordHint,
+    currentPassword,
+    isPinned,
+    isFavorite
+  } = req.body;
 
   try {
     const note = await Note.findOne({ _id: id, user: req.user._id });
@@ -149,8 +179,18 @@ router.put('/:id', protect, async (req, res) => {
       return res.status(404).json({ message: 'Note not found' });
     }
 
-    // If the note was protected, they must supply the currentPassword to verify
-    if (note.isProtected) {
+    // Determine if we are changing content/structure of a protected note
+    const isModifyingContent =
+      title !== undefined ||
+      content !== undefined ||
+      checklist !== undefined ||
+      links !== undefined ||
+      tags !== undefined ||
+      isProtected !== undefined ||
+      password !== undefined;
+
+    // If the note is protected and we modify content, verify the current password
+    if (note.isProtected && isModifyingContent) {
       if (!currentPassword) {
         return res.status(401).json({ message: 'Current password is required to update a protected note' });
       }
@@ -160,14 +200,20 @@ router.put('/:id', protect, async (req, res) => {
       }
     }
 
-    // Assign title
-    if (title) note.title = title;
-    note.checklist = checklist || note.checklist;
-    note.links = links || note.links;
+    // Update metadata directly (can be updated even if protected without verification)
+    if (isPinned !== undefined) note.isPinned = isPinned;
+    if (isFavorite !== undefined) note.isFavorite = isFavorite;
+    if (passwordHint !== undefined) note.passwordHint = passwordHint;
+
+    // Update content/structure fields
+    if (title !== undefined) note.title = title;
+    if (checklist !== undefined) note.checklist = checklist;
+    if (links !== undefined) note.links = links;
+    if (tags !== undefined) note.tags = tags;
 
     // Handle protection state updates
-    if (isProtected && password) {
-      // Re-encrypt/encrypt with new/existing password
+    if (password) {
+      // Set or update password
       const salt = await bcrypt.genSalt(10);
       note.passwordHash = await bcrypt.hash(password, salt);
       note.content = encrypt(content || '', password);
@@ -177,10 +223,10 @@ router.put('/:id', protect, async (req, res) => {
       note.passwordHash = null;
       note.content = content || '';
       note.isProtected = false;
-    } else if (note.isProtected && content) {
+    } else if (note.isProtected && content !== undefined) {
       // Content updated, keeping existing protection (encrypt with validated currentPassword)
       note.content = encrypt(content, currentPassword);
-    } else if (content) {
+    } else if (content !== undefined) {
       // Content updated, note is not protected
       note.content = content;
     }
@@ -191,11 +237,16 @@ router.put('/:id', protect, async (req, res) => {
     if (note.isProtected) {
       res.json({
         _id: note._id,
+        user: note.user,
         title: note.title,
         content: '🔒 Protected Content. Please enter password to unlock.',
         checklist: [],
         links: [],
+        tags: note.tags || [],
         isProtected: true,
+        passwordHint: note.passwordHint || '',
+        isPinned: note.isPinned || false,
+        isFavorite: note.isFavorite || false,
         createdAt: note.createdAt,
         updatedAt: note.updatedAt
       });
