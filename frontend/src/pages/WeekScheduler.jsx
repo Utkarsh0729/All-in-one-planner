@@ -289,12 +289,20 @@ const WeekScheduler = () => {
     const goal = goals.find(g => g._id === goalId);
     if (!goal) return;
 
+    const previousGoals = [...goals];
+
     const updatedSubtasks = goal.subtasks.map(s => {
       if (s._id === subtaskId) {
         return { ...s, checked: !s.checked };
       }
       return s;
     });
+
+    const checkedCount = updatedSubtasks.filter(s => s.checked).length;
+    const progress = updatedSubtasks.length > 0 ? Math.round((checkedCount / updatedSubtasks.length) * 100) : 0;
+    const completed = updatedSubtasks.length > 0 && checkedCount === updatedSubtasks.length;
+
+    setGoals(prev => prev.map(g => g._id === goalId ? { ...g, subtasks: updatedSubtasks, progress, completed } : g));
 
     try {
       const res = await fetch(`${API_URL}/week-goals/${goalId}`, {
@@ -313,13 +321,20 @@ const WeekScheduler = () => {
       fetchAnalytics();
     } catch (err) {
       console.error('Failed to update subtask:', err);
-      setError('Failed to update subtask.');
+      setError('Failed to update subtask. Reverting changes...');
+      setGoals(previousGoals);
     }
   };
 
   const handleToggleGoalOnly = async (goalId) => {
     const goal = goals.find(g => g._id === goalId);
     if (!goal) return;
+
+    const previousGoals = [...goals];
+    const newCompleted = !goal.completed;
+    const newProgress = newCompleted ? 100 : 0;
+
+    setGoals(prev => prev.map(g => g._id === goalId ? { ...g, completed: newCompleted, progress: newProgress } : g));
 
     try {
       const res = await fetch(`${API_URL}/week-goals/${goalId}`, {
@@ -328,7 +343,7 @@ const WeekScheduler = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ completed: !goal.completed })
+        body: JSON.stringify({ completed: newCompleted })
       });
 
       const data = await res.json();
@@ -338,7 +353,8 @@ const WeekScheduler = () => {
       fetchAnalytics();
     } catch (err) {
       console.error('Failed to toggle goal status:', err);
-      setError('Failed to update goal.');
+      setError('Failed to update goal. Reverting changes...');
+      setGoals(previousGoals);
     }
   };
 
@@ -572,7 +588,10 @@ const WeekScheduler = () => {
                                   <ChevronDown size={18} />
                                 </button>
                               )}
-                              <div>
+                              <div
+                                onClick={() => goal.subtasks.length > 0 && toggleGoalCollapse(goal._id)}
+                                style={{ cursor: goal.subtasks.length > 0 ? 'pointer' : 'default' }}
+                              >
                                 <h4 style={{ fontSize: '17px', textDecoration: goal.completed ? 'line-through' : 'none' }}>
                                   {goal.title}
                                 </h4>
