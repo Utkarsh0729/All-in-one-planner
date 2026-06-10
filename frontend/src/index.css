@@ -287,9 +287,16 @@ button, input, select, textarea {
   box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
 }
 
+select optgroup,
 select option {
-  background-color: var(--bg-panel-solid);
-  color: var(--text-primary);
+  background-color: var(--bg-panel-solid) !important;
+  color: var(--text-primary) !important;
+}
+
+select optgroup {
+  color: var(--text-secondary) !important;
+  font-weight: 600;
+  font-style: normal;
 }
 
 /* Premium Buttons */

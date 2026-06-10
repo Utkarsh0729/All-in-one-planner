@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import OnboardingModal from '../components/OnboardingModal';
 import { 
@@ -1290,7 +1291,7 @@ const CalorieCalculator = () => {
         }} 
       />
 
-      {selectedMealDetail && (
+      {selectedMealDetail && createPortal(
         <div 
           style={{
             position: 'fixed',
@@ -1298,11 +1299,11 @@ const CalorieCalculator = () => {
             left: 0,
             width: '100vw',
             height: '100vh',
-            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 9999,
             backdropFilter: 'blur(3px)',
             animation: 'fadeIn 0.2s ease-out'
           }}
@@ -1405,7 +1406,8 @@ const CalorieCalculator = () => {
               </a>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

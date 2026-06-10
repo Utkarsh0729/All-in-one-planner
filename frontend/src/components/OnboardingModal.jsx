@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { X } from 'lucide-react';
 
@@ -80,7 +81,7 @@ const OnboardingModal = ({ section, isOpen, onClose }) => {
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-overlay">
       <div className="modal-content card" style={{ position: 'relative' }}>
         <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close modal">
@@ -224,7 +225,8 @@ const OnboardingModal = ({ section, isOpen, onClose }) => {
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
