@@ -19,7 +19,7 @@ const DEFAULT_MODEL = 'meta/llama-3.1-8b-instruct';
  * @param {boolean} jsonMode 
  * @returns {Promise<any>}
  */
-export const queryNvidiaAI = async (systemPrompt, userPrompt, jsonMode = false) => {
+export const queryNvidiaAI = async (systemPrompt, userPrompt, jsonMode = false, temperature = 0.2) => {
   const apiKey = getApiKey();
   if (!apiKey || apiKey.startsWith('YOUR_')) {
     throw new Error('NVIDIA_API_KEY is not configured in .env');
@@ -32,7 +32,7 @@ export const queryNvidiaAI = async (systemPrompt, userPrompt, jsonMode = false) 
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.2,
+      temperature,
       max_tokens: 1024
     };
 

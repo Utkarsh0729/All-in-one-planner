@@ -109,12 +109,14 @@ const generateAIWorkout = async (profile, historyText, customPrompt) => {
   }
 };
 
-const rerollAIExercise = async (exerciseName, profile) => {
+const rerollAIExercise = async (exerciseName, profile, existingNames = []) => {
   const systemPrompt = `You are an AI personal trainer.`;
   const userPrompt = `Substitute the exercise "${exerciseName}".
     User details:
     - Location: ${profile.gymLocation}
     - Fitness Goal: ${profile.fitnessGoal}
+
+    Avoid these exercises already in the workout plan: ${JSON.stringify(existingNames)}.
 
     Suggest ONE alternative exercise that targets the same muscle groups.
     Return ONLY a JSON object:
@@ -128,7 +130,7 @@ const rerollAIExercise = async (exerciseName, profile) => {
     Do not output any introductory or concluding text, only the raw JSON.`;
 
   try {
-    return await queryNvidiaAI(systemPrompt, userPrompt, true);
+    return await queryNvidiaAI(systemPrompt, userPrompt, true, 0.7);
   } catch (error) {
     console.error('NVIDIA exercise reroll error:', error);
     throw error;
@@ -700,7 +702,8 @@ router.post('/:date/exercise/:exerciseId/reroll', protect, async (req, res) => {
     let aiUsed = true;
 
     try {
-      alternative = await rerollAIExercise(exercise.name, profile);
+      const existingNames = log.exercises.map(e => e.name);
+      alternative = await rerollAIExercise(exercise.name, profile, existingNames);
     } catch (error) {
       console.error(error);
       aiUsed = false;
