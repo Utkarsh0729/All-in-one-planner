@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }) => {
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#08080c', color: '#94a3b8' }}>
-        <p style={{ fontSize: '18px', fontWeight: '500' }}>Initializing Sidekick Planner...</p>
+        <p style={{ fontSize: '18px', fontWeight: '500' }}>Initializing Aegis OS...</p>
       </div>
     );
   }
