@@ -1,17 +1,24 @@
 # 🛡️ Aegis Planner (Aegis OS)
-A glassmorphic personal operating system and productivity suite designed to manage your schedule, routines, notes, and health.
+A glassmorphic dark theme personal operating system and productivity suite designed to manage your schedule, routines, notes, and health.
 
-## 🌟 Core Features
+## 🛠️ Technical Stack & Architecture
+- **Frontend**: Single Page Application (SPA) built with **React 19**, **Vite 8** (featuring Rolldown compilation), **React Router DOM 6**, and **Lucide React** icons. Styled with raw CSS variables and glassmorphism styling tokens. Text styling powered by **Tiptap Rich-Text Editor**.
+- **Backend**: **REST API** server built on **Node.js** and **Express**, utilizing **MongoDB** via **Mongoose** object modeling.
+- **Security & Jobs**: **JWT** (JSON Web Tokens) user authentication, **Bcryptjs** passcode hashing, automated schedules using **Node-Cron**, and transactional emails via **Nodemailer**.
+
+---
+
+## 🌟 Core Functionalities
 
 ### 📊 Unified Dashboard
-- **Consolidated Overview**: Tracks daily goals, workouts, notes, and calories in one screen.
-- **Compliance Visualizers**: Ring trackers indicating macro compliance, schedule progress, and workout completions.
+- **Consolidated Overview**: Tracks daily goals, active workouts, logs, and calories in a single pane.
+- **Compliance Visualizers**: Ring gauges representing macro limits compliance, schedule completion, and workout updates.
 
 ### 🍎 Nutrition Tracker V2
-- **Portion & Macro Log**: Detailed logged meal registers with automatic breakdown of calories, protein, carbs, fats, and fiber.
-- **Portal Modals**: Meal info cards render in a React Portal that locks page scrolling and overlays background interactions.
+- **Portion & Macro Log**: Detailed meal records with portion configurations and automatic breakdowns of calories, protein, carbs, fats, and fiber.
+- **Portal Modals**: Meal info cards render in a React Portal directly appended to `document.body` to lock background pages and scroll interactions.
 - **Frequently Eaten Foods**: Intelligent suggestions providing quick shortcuts for logging regular foods.
-- **Onboarding Targets**: Automated intake calculators derived from age, height, weight, activity levels, and fitness goals.
+- **Onboarding Targets**: Automated intake calculations derived from age, height, weight, activity levels, and fitness goals.
 - **Quick Logging & Favorites**: Direct quick-adds for manual macros and reusable favorite templates.
 
 ### 📅 Weekly Goal Scheduler
