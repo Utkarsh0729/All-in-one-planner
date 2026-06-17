@@ -57,19 +57,11 @@ const Dashboard = () => {
         let workoutStatus = 'No workout logged';
         let workoutCompleted = 0;
         let workoutTotal = 0;
-        let routineFilledHours = 0;
-        let notesCount = 0;
-        let focusScore = 0;
-        let productivityScore = 0;
         let workoutStreak = 0;
         let healthyEatingStreak = 0;
         let productivityStreak = 0;
         let goalCompletionStreak = 0;
-        let weeklyProductiveHours = 0;
-        let weeklyWorkoutsCompleted = 0;
-        let nutritionAdherence = 0;
         let goalCompletionRate = 0;
-        let rawRecommendations = [];
 
         const headers = { Authorization: `Bearer ${token}` };
 
@@ -116,78 +108,6 @@ const Dashboard = () => {
           }
         };
 
-        const loadRoutine = async () => {
-          try {
-            const res = await fetch(`${API_URL}/routines/${todayStr}`, { headers });
-            if (res.ok) {
-              const routineData = await res.json();
-              if (routineData.activities) {
-                routineFilledHours = routineData.activities.reduce((acc, curr) => acc + (Number(curr.duration) || 0), 0);
-                routineFilledHours = Number(routineFilledHours.toFixed(1));
-              }
-            }
-          } catch (e) {
-            console.error('Error fetching routine logs:', e);
-          }
-        };
-
-        const loadNotesCount = async () => {
-          try {
-            const res = await fetch(`${API_URL}/notes`, { headers });
-            if (res.ok) {
-              const notesData = await res.json();
-              notesCount = notesData.length || 0;
-            }
-          } catch (e) {
-            console.error('Error fetching notes:', e);
-          }
-        };
-
-        const loadRoutineInsights = async () => {
-          try {
-            const res = await fetch(`${API_URL}/routines/insights`, { headers });
-            if (res.ok) {
-              const routineInsights = await res.json();
-              if (routineInsights && routineInsights.hasData !== false) {
-                focusScore = routineInsights.focusScore || 0;
-                productivityScore = routineInsights.weeklyProductivityScore || 0;
-                
-                if (routineInsights.insights) {
-                  rawRecommendations.push({
-                    source: 'Routine',
-                    text: 'Check routine: ' + routineInsights.insights.split('\n')[0].replace(/[*#]/g, '').trim(),
-                    type: 'tip'
-                  });
-                }
-              }
-            }
-          } catch (e) {
-            console.error('Error fetching routine insights:', e);
-          }
-        };
-
-        const loadNutritionAnalytics = async () => {
-          try {
-            const res = await fetch(`${API_URL}/nutrition/analytics/summary`, { headers });
-            if (res.ok) {
-              const nutritionAnalytics = await res.json();
-              nutritionAdherence = nutritionAnalytics.weeklyAdherenceScore || 0;
-              
-              if (nutritionAnalytics.suggestions && Array.isArray(nutritionAnalytics.suggestions)) {
-                nutritionAnalytics.suggestions.forEach(s => {
-                  rawRecommendations.push({
-                    source: 'Nutrition',
-                    text: s,
-                    type: 'alert'
-                  });
-                });
-              }
-            }
-          } catch (e) {
-            console.error('Error fetching nutrition analytics:', e);
-          }
-        };
-
         const loadGoalsAnalytics = async () => {
           try {
             const res = await fetch(`${API_URL}/week-goals/analytics/summary`, { headers });
@@ -198,18 +118,6 @@ const Dashboard = () => {
               healthyEatingStreak = goalsAnalytics.streaks?.healthyEatingStreak || 0;
               productivityStreak = goalsAnalytics.streaks?.productivityStreak || 0;
               goalCompletionStreak = goalsAnalytics.streaks?.goalCompletionStreak || 0;
-              weeklyProductiveHours = goalsAnalytics.productiveHoursThisWeek || 0;
-              weeklyWorkoutsCompleted = goalsAnalytics.workoutSessionsThisWeek || 0;
-
-              if (goalsAnalytics.insights && Array.isArray(goalsAnalytics.insights)) {
-                goalsAnalytics.insights.forEach(ins => {
-                  rawRecommendations.push({
-                    source: 'Goals & Consistency',
-                    text: ins,
-                    type: 'milestone'
-                  });
-                });
-              }
             }
           } catch (e) {
             console.error('Error fetching goals analytics:', e);
@@ -221,10 +129,6 @@ const Dashboard = () => {
           loadProfile(),
           loadNutrition(),
           loadWorkout(),
-          loadRoutine(),
-          loadNotesCount(),
-          loadRoutineInsights(),
-          loadNutritionAnalytics(),
           loadGoalsAnalytics()
         ]);
 
@@ -243,16 +147,6 @@ const Dashboard = () => {
           streakLabel = `${goalCompletionStreak}-Week Goal Streak`;
         }
 
-        // Append fallback recommendations if aggregate suggestions list is sparse
-        if (rawRecommendations.length < 3) {
-          const fallbacks = [
-            { source: 'Nutrition', text: 'Protein intake is consistently low. Consider adding one protein-rich meal.', type: 'alert' },
-            { source: 'Routine', text: 'You are most productive between 9 AM and 12 PM. Block notifications during this time.', type: 'tip' },
-            { source: 'Goals', text: 'Goal completion is trending upward. Keep up the high checklist adherence!', type: 'milestone' }
-          ];
-          rawRecommendations = [...rawRecommendations, ...fallbacks];
-        }
-
         const workoutCompletionPct = workoutTotal > 0 ? Math.round((workoutCompleted / workoutTotal) * 100) : 0;
 
         setData({
@@ -262,18 +156,10 @@ const Dashboard = () => {
           workoutCompleted,
           workoutTotal,
           workoutCompletionPct,
-          routineFilledHours,
           weeklyGoalProgress: goalCompletionRate,
-          notesCount,
-          focusScore,
-          productivityScore,
           currentStreak: activeStreak,
           streakType: streakLabel,
-          weeklyProductiveHours,
-          weeklyWorkoutsCompleted,
-          nutritionAdherence,
-          goalCompletionRate,
-          recommendations: rawRecommendations.slice(0, 5) // display top 5 suggestions
+          goalCompletionRate
         });
 
       } catch (err) {
@@ -340,15 +226,9 @@ const Dashboard = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }} className="page-fade-in">
           {/* KPI Cards Skeleton Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
-            {[1, 2, 3, 4, 5, 6].map(n => (
+            {[1, 2, 3, 4].map(n => (
               <div key={n} className="card skeleton" style={{ height: '110px', border: 'none' }} />
             ))}
-          </div>
-          
-          {/* Two Column Layout Skeleton */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
-            <div className="card skeleton" style={{ height: '340px', border: 'none' }} />
-            <div className="card skeleton" style={{ height: '340px', border: 'none' }} />
           </div>
         </div>
       ) : (
@@ -357,40 +237,8 @@ const Dashboard = () => {
           {/* KPI Cards Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
             
-            {/* KPI 1: Focus Score */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifycontent: 'space-between', padding: '18px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Focus Score</span>
-                <Brain size={18} className="text-cyan" />
-              </div>
-              <div style={{ marginTop: '16px' }}>
-                <div style={{ fontSize: '28px', fontWeight: '800', fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
-                  {data.focusScore}%
-                </div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
-                  Waking active focus
-                </span>
-              </div>
-            </div>
-
-            {/* KPI 2: Productivity Score */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifycontent: 'space-between', padding: '18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Productivity</span>
-                <Zap size={18} className="text-orange" />
-              </div>
-              <div style={{ marginTop: '16px' }}>
-                <div style={{ fontSize: '28px', fontWeight: '800', fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
-                  {data.productivityScore}%
-                </div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
-                  Productive hours ratio
-                </span>
-              </div>
-            </div>
-
-            {/* KPI 3: Calories Remaining */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifycontent: 'space-between', padding: '18px' }}>
+            {/* KPI 1: Calories Remaining */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Remaining Cal</span>
                 <Utensils size={18} className="text-cyan" />
@@ -405,8 +253,8 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* KPI 4: Workout Completion */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifycontent: 'space-between', padding: '18px' }}>
+            {/* KPI 2: Workout Completion */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Workout Complete</span>
                 <Dumbbell size={18} className="text-purple" />
@@ -421,8 +269,8 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* KPI 5: Weekly Goal Progress */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifycontent: 'space-between', padding: '18px' }}>
+            {/* KPI 3: Weekly Goal Progress */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Goal Progress</span>
                 <Target size={18} className="text-emerald" />
@@ -437,8 +285,8 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* KPI 6: Current Streak Display */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifycontent: 'space-between', padding: '18px' }}>
+            {/* KPI 4: Current Streak Display */}
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '600' }}>Current Streak</span>
                 <Flame size={18} style={{ color: '#fbbf24' }} />
@@ -450,153 +298,6 @@ const Dashboard = () => {
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {data.currentStreak > 0 ? data.streakType.split('-')[1] || 'Consistent activity' : 'Keep logging data!'}
                 </span>
-              </div>
-            </div>
-
-          </div>
-
-          {/* Row 2: Weekly Snapshot & Smart Recommendations */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '32px' }}>
-            
-            {/* Weekly Snapshot */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifycontent: 'space-between' }}>
-              <div>
-                <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Calendar size={22} className="text-cyan" /> Weekly Snapshot
-                </h3>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {/* Item 1: Productive Hours */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', marginBottom: '6px' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Productive Hours Logged</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{data.weeklyProductiveHours} hrs</strong>
-                    </div>
-                    <div className="progress-bar-bg">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          width: `${Math.min((data.weeklyProductiveHours / 40) * 100, 100)}%`, // out of 40h standard
-                          background: 'var(--accent-orange)'
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Item 2: Workout Sessions */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', marginBottom: '6px' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Workout Sessions Completed</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{data.weeklyWorkoutsCompleted} sessions</strong>
-                    </div>
-                    <div className="progress-bar-bg">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          width: `${Math.min((data.weeklyWorkoutsCompleted / 4) * 100, 100)}%`, // out of 4 targeted workouts
-                          background: 'var(--accent-purple)'
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Item 3: Nutrition Adherence */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', marginBottom: '6px' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Nutrition Compliance Adherence</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{data.nutritionAdherence}% compliant</strong>
-                    </div>
-                    <div className="progress-bar-bg">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          width: `${data.nutritionAdherence}%`,
-                          background: 'var(--accent-cyan)'
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Item 4: Goal Completion */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', marginBottom: '6px' }}>
-                      <span style={{ color: 'var(--text-secondary)', fontWeight: '500' }}>Goal Completion Rate</span>
-                      <strong style={{ color: 'var(--text-primary)' }}>{data.goalCompletionRate}% completed</strong>
-                    </div>
-                    <div className="progress-bar-bg">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          width: `${data.goalCompletionRate}%`,
-                          background: 'var(--accent-emerald)'
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-light)', paddingTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>Quick Links:</span>
-                <div style={{ display: 'flex', gap: '14px' }}>
-                  <Link to="/scheduler" style={{ fontSize: '13px', color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }} className="hover-opacity">
-                    Planner <ChevronRight size={14} />
-                  </Link>
-                  <Link to="/calories" style={{ fontSize: '13px', color: 'var(--accent-cyan)', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }} className="hover-opacity">
-                    Calories <ChevronRight size={14} />
-                  </Link>
-                  <Link to="/workouts" style={{ fontSize: '13px', color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '2px', textDecoration: 'none' }} className="hover-opacity">
-                    Fitness <ChevronRight size={14} />
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            {/* Smart Recommendations */}
-            <div className="card">
-              <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Sparkles size={22} style={{ color: '#fbbf24' }} /> Smart Recommendations
-              </h3>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {data.recommendations.map((rec, index) => {
-                  let badgeColor = 'rgba(6, 182, 212, 0.1)';
-                  let textColor = 'var(--accent-cyan)';
-                  if (rec.type === 'alert') {
-                    badgeColor = 'rgba(239, 68, 68, 0.08)';
-                    textColor = 'var(--text-red)';
-                  } else if (rec.type === 'milestone') {
-                    badgeColor = 'rgba(168, 85, 247, 0.08)';
-                    textColor = 'var(--accent-purple)';
-                  }
-
-                  return (
-                    <div 
-                      key={index} 
-                      style={{ 
-                        padding: '14px', 
-                        background: 'rgba(255, 255, 255, 0.02)', 
-                        border: '1px solid var(--border-light)', 
-                        borderRadius: '12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '6px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                          {rec.source}
-                        </span>
-                        <span style={{ fontSize: '10px', background: badgeColor, color: textColor, padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>
-                          {rec.type.toUpperCase()}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4', margin: 0 }}>
-                        {rec.text}
-                      </p>
-                    </div>
-                  );
-                })}
               </div>
             </div>
 
