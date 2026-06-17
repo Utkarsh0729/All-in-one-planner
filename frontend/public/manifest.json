@@ -1,0 +1,16 @@
+{
+  "short_name": "Aegis OS",
+  "name": "Aegis OS - All-in-One Planner",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#09090b",
+  "theme_color": "#9333ea",
+  "display": "standalone",
+  "orientation": "portrait-primary"
+}

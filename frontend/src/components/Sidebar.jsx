@@ -10,12 +10,36 @@ import {
   FileText, 
   Settings as SettingsIcon, 
   LogOut,
-  Sparkles
+  Sparkles,
+  Download
 } from 'lucide-react';
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const [deferredPrompt, setDeferredPrompt] = React.useState(null);
+
+  React.useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to install: ${outcome}`);
+    setDeferredPrompt(null);
+  };
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: <LayoutDashboard size={20} /> },
@@ -58,6 +82,44 @@ const Sidebar = () => {
           </li>
         ))}
       </ul>
+
+      {deferredPrompt && (
+        <div style={{ padding: '0 16px', marginBottom: '16px' }}>
+          <button 
+            onClick={handleInstallClick} 
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              padding: '10px 16px',
+              background: 'rgba(147, 51, 234, 0.08)',
+              border: '1px solid rgba(147, 51, 234, 0.2)',
+              borderRadius: '8px',
+              color: '#a855f7',
+              cursor: 'pointer',
+              fontSize: '13.5px',
+              fontWeight: '600',
+              transition: 'all 0.2s ease',
+              outline: 'none'
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(147, 51, 234, 0.16)';
+              e.currentTarget.style.borderColor = 'rgba(147, 51, 234, 0.4)';
+              e.currentTarget.style.color = '#c084fc';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(147, 51, 234, 0.08)';
+              e.currentTarget.style.borderColor = 'rgba(147, 51, 234, 0.2)';
+              e.currentTarget.style.color = '#a855f7';
+            }}
+          >
+            <Download size={16} />
+            <span>Download Desktop App</span>
+          </button>
+        </div>
+      )}
 
       {user && (
         <div className="sidebar-user">
