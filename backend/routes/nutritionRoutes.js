@@ -9,54 +9,56 @@ import { queryNvidiaAI } from '../utils/nvidia.js';
 const router = express.Router();
 
 // Helper to convert units to standard multipliers (relative to 100g base)
-const getUnitMultiplier = (quantity, unit) => {
+const getUnitMultiplier = (quantity, unit, wholeWeight = 100) => {
   const lowerUnit = unit.toLowerCase();
   if (lowerUnit === 'g' || lowerUnit === 'gm' || lowerUnit === 'grams') {
     return quantity / 100;
   }
   if (lowerUnit === 'kg') {
-    return (quantity * 1000) / 100; // kg -> grams
-  }
-  if (lowerUnit === 'ml' || lowerUnit === 'milliliter') {
-    return quantity / 100;
-  }
-  if (lowerUnit === 'l' || lowerUnit === 'litre' || lowerUnit === 'liter') {
     return (quantity * 1000) / 100;
   }
-  if (lowerUnit === 'piece' || lowerUnit === 'pieces' || lowerUnit === 'nos') {
-    return quantity * 0.6; // Average small piece ~60g
+  if (lowerUnit === 'ml' || lowerUnit === 'milliliter' || lowerUnit === 'milliliters') {
+    return quantity / 100;
+  }
+  if (lowerUnit === 'l' || lowerUnit === 'litre' || lowerUnit === 'liter' || lowerUnit === 'liters') {
+    return (quantity * 1000) / 100;
   }
   if (lowerUnit === 'whole') {
-    return quantity * 1.5; // e.g. 1 whole mango ~150g
+    return (quantity * wholeWeight) / 100;
   }
-  if (lowerUnit === 'bowl' || lowerUnit === 'bowls') {
-    return quantity * 3.0; // Average bowl ~300g
-  }
-  if (lowerUnit === 'cup' || lowerUnit === 'cups') {
-    return quantity * 2.4; // Average cup ~240g
-  }
-  if (lowerUnit === 'plate' || lowerUnit === 'plates') {
-    return quantity * 4.0; // Average plate ~400g
-  }
-  if (lowerUnit === 'tbsp' || lowerUnit === 'tablespoon') {
-    return quantity * 0.15; // ~15g
-  }
-  if (lowerUnit === 'tsp' || lowerUnit === 'teaspoon') {
-    return quantity * 0.05; // ~5g
-  }
-  if (lowerUnit === 'scoop') {
-    return quantity * 0.3; // ~30g per scoop (protein powder etc)
-  }
-  if (lowerUnit === 'handful') {
-    return quantity * 0.3; // ~30g handful
+  if (lowerUnit === 'piece' || lowerUnit === 'pieces' || lowerUnit === 'nos') {
+    return (quantity * wholeWeight) / 100;
   }
   if (lowerUnit === 'slice' || lowerUnit === 'slices') {
-    return quantity * 0.3; // ~30g per slice
+    // Slices default to 30g if wholeWeight is default, otherwise use wholeWeight
+    const sliceWeight = wholeWeight === 100 ? 30 : wholeWeight;
+    return (quantity * sliceWeight) / 100;
+  }
+  if (lowerUnit === 'bowl' || lowerUnit === 'bowls') {
+    return quantity * 3.0;
+  }
+  if (lowerUnit === 'cup' || lowerUnit === 'cups') {
+    return quantity * 2.4;
+  }
+  if (lowerUnit === 'plate' || lowerUnit === 'plates') {
+    return quantity * 4.0;
+  }
+  if (lowerUnit === 'tbsp' || lowerUnit === 'tablespoon') {
+    return quantity * 0.15;
+  }
+  if (lowerUnit === 'tsp' || lowerUnit === 'teaspoon') {
+    return quantity * 0.05;
+  }
+  if (lowerUnit === 'scoop' || lowerUnit === 'scoops') {
+    return quantity * 0.3;
+  }
+  if (lowerUnit === 'handful') {
+    return quantity * 0.3;
   }
   if (lowerUnit === 'serving' || lowerUnit === 'servings') {
-    return quantity * 1.0; // 1 serving = 100g base
+    return quantity * 1.0;
   }
-  return quantity; // Default fallback
+  return quantity;
 };
 
 // Search Open Food Facts API
@@ -91,6 +93,7 @@ const fetchFromOpenFoodFacts = async (name) => {
 const fetchFromNvidia = async (name) => {
   const systemPrompt = `You are a professional food nutrition analyst. Analyze the nutrient composition of the given food or supplement.
 Provide highly accurate nutritional content based on 100g (or 100ml for liquids) standard size.
+Also estimate the average weight in grams of a single/whole item of this food (e.g. 1 whole banana, 1 whole egg, 1 whole apple). If it is not a countable/whole food (like flour, butter, protein powder, or cooked dish with no discrete items), set wholeWeight to 100.
 Be extremely precise with protein, carbs, fat, and fiber per 100g. Always output ONLY valid JSON. Do not include markdown wraps.`;
   const userPrompt = `Analyze nutrition for "${name}". Return ONLY a JSON object:
   {
@@ -99,7 +102,8 @@ Be extremely precise with protein, carbs, fat, and fiber per 100g. Always output
     "protein": number (in grams per 100g),
     "carbs": number (in grams per 100g),
     "fat": number (in grams per 100g),
-    "fiber": number (in grams per 100g)
+    "fiber": number (in grams per 100g),
+    "wholeWeight": number (average weight in grams of a single whole item/serving, default to 100 if not applicable)
   }
   Do not return any introductory or concluding text, only the raw JSON.`;
 
@@ -119,30 +123,31 @@ const getMockNutrients = (name) => {
   let carbs = 15;
   let fat = 1;
   let fiber = 0.5;
+  let wholeWeight = 100;
 
   if (cleanName.includes('egg')) {
-    calories = 143; protein = 13; carbs = 0.7; fat = 9.5; fiber = 0;
+    calories = 143; protein = 13; carbs = 0.7; fat = 9.5; fiber = 0; wholeWeight = 50;
   } else if (cleanName.includes('chicken') || cleanName.includes('breast')) {
-    calories = 165; protein = 31; carbs = 0; fat = 3.6; fiber = 0;
+    calories = 165; protein = 31; carbs = 0; fat = 3.6; fiber = 0; wholeWeight = 172;
   } else if (cleanName.includes('rice')) {
-    calories = 130; protein = 2.7; carbs = 28; fat = 0.3; fiber = 0.4;
+    calories = 130; protein = 2.7; carbs = 28; fat = 0.3; fiber = 0.4; wholeWeight = 150;
   } else if (cleanName.includes('dal') || cleanName.includes('lentil')) {
-    calories = 116; protein = 9; carbs = 20; fat = 0.4; fiber = 4;
+    calories = 116; protein = 9; carbs = 20; fat = 0.4; fiber = 4; wholeWeight = 150;
   } else if (cleanName.includes('roti') || cleanName.includes('chapati')) {
-    calories = 260; protein = 8; carbs = 55; fat = 1.5; fiber = 7;
+    calories = 260; protein = 8; carbs = 55; fat = 1.5; fiber = 7; wholeWeight = 35;
   } else if (cleanName.includes('paneer') || cleanName.includes('cottage cheese')) {
-    calories = 265; protein = 18; carbs = 3; fat = 20; fiber = 0;
+    calories = 265; protein = 18; carbs = 3; fat = 20; fiber = 0; wholeWeight = 100;
   } else if (cleanName.includes('banana')) {
-    calories = 89; protein = 1.1; carbs = 23; fat = 0.3; fiber = 2.6;
+    calories = 89; protein = 1.1; carbs = 23; fat = 0.3; fiber = 2.6; wholeWeight = 120;
   } else if (cleanName.includes('apple')) {
-    calories = 52; protein = 0.3; carbs = 14; fat = 0.2; fiber = 2.4;
+    calories = 52; protein = 0.3; carbs = 14; fat = 0.2; fiber = 2.4; wholeWeight = 182;
   } else if (cleanName.includes('milk')) {
-    calories = 60; protein = 3.2; carbs = 4.8; fat = 3.25; fiber = 0;
+    calories = 60; protein = 3.2; carbs = 4.8; fat = 3.25; fiber = 0; wholeWeight = 240;
   } else if (cleanName.includes('oats') || cleanName.includes('oatmeal')) {
-    calories = 389; protein = 16.9; carbs = 66; fat = 6.9; fiber = 10;
+    calories = 389; protein = 16.9; carbs = 66; fat = 6.9; fiber = 10; wholeWeight = 40;
   }
 
-  return { name, calories, protein, carbs, fat, fiber };
+  return { name, calories, protein, carbs, fat, fiber, wholeWeight };
 };
 
 // Main search composition helper
@@ -152,7 +157,11 @@ const searchNutritionComposition = async (name) => {
   // 1. Check Database Cache
   const cachedFood = await FoodCache.findOne({ name: searchName });
   if (cachedFood) {
-    return { ...cachedFood.toObject(), source: 'cache' };
+    return { 
+      ...cachedFood.toObject(), 
+      source: cachedFood.source || 'cache',
+      wholeWeight: cachedFood.wholeWeight || 100 
+    };
   }
 
   // 2. Query NVIDIA AI
@@ -161,6 +170,7 @@ const searchNutritionComposition = async (name) => {
 
   try {
     data = await fetchFromNvidia(searchName);
+    data.wholeWeight = Number(data.wholeWeight) || 100;
   } catch (nvidiaError) {
     console.warn('[NVIDIA Miss] Open Food Facts fallback:', nvidiaError);
     // 3. Fallback to Open Food Facts
@@ -171,6 +181,8 @@ const searchNutritionComposition = async (name) => {
       // 4. Fallback to rules dictionary
       data = getMockNutrients(searchName);
       source = 'local_mock';
+    } else {
+      data.wholeWeight = 100;
     }
   }
 
@@ -184,7 +196,9 @@ const searchNutritionComposition = async (name) => {
       fat: data.fat,
       fiber: data.fiber || 0,
       baseUnit: 'g',
-      baseQuantity: 100
+      baseQuantity: 100,
+      wholeWeight: data.wholeWeight || 100,
+      source: source
     });
   } catch (dbError) {
     console.error('Failed to cache search result:', dbError);
@@ -546,7 +560,7 @@ router.post('/:date', protect, async (req, res) => {
   try {
     const parsedQuantity = Number(quantity);
     const baseNutrient = await searchNutritionComposition(name);
-    const multiplier = getUnitMultiplier(parsedQuantity, unit);
+    const multiplier = getUnitMultiplier(parsedQuantity, unit, baseNutrient.wholeWeight);
 
     let log = await NutritionLog.findOne({ user: req.user._id, date });
 
@@ -567,6 +581,7 @@ router.post('/:date', protect, async (req, res) => {
       carbs: Math.round(baseNutrient.carbs * multiplier * 10) / 10,
       fat: Math.round(baseNutrient.fat * multiplier * 10) / 10,
       fiber: Math.round((baseNutrient.fiber || 0) * multiplier * 10) / 10,
+      source: baseNutrient.source
     });
 
     await log.save();
@@ -602,7 +617,8 @@ router.post('/:date/quick-add', protect, async (req, res) => {
       protein: Number(protein) || 0,
       carbs: Number(carbs) || 0,
       fat: Number(fat) || 0,
-      fiber: Number(fiber) || 0
+      fiber: Number(fiber) || 0,
+      source: 'manual'
     });
 
     await log.save();
@@ -633,13 +649,14 @@ router.patch('/:date/:itemId', protect, async (req, res) => {
     // Re-compute macros based on new quantity; original stored per 100g from cache
     const cachedFood = await FoodCache.findOne({ name: item.name.trim().toLowerCase() });
     if (cachedFood) {
-      const multiplier = getUnitMultiplier(Number(quantity), item.unit);
+      const multiplier = getUnitMultiplier(Number(quantity), item.unit, cachedFood.wholeWeight || 100);
       item.quantity = Number(quantity);
       item.calories = Math.round(cachedFood.calories * multiplier);
       item.protein = Math.round(cachedFood.protein * multiplier * 10) / 10;
       item.carbs = Math.round(cachedFood.carbs * multiplier * 10) / 10;
       item.fat = Math.round(cachedFood.fat * multiplier * 10) / 10;
       item.fiber = Math.round((cachedFood.fiber || 0) * multiplier * 10) / 10;
+      item.source = cachedFood.source || 'cache';
     } else {
       // If no cache, scale proportionally from existing values
       const ratio = Number(quantity) / item.quantity;

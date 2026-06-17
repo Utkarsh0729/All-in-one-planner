@@ -76,6 +76,59 @@ const CalorieCalculator = () => {
   const [editingQty, setEditingQty] = useState('');
   const [selectedMealDetail, setSelectedMealDetail] = useState(null);
 
+  const getSourceBadge = (source) => {
+    if (!source || source === 'unknown') return null;
+    let label = '';
+    let color = '';
+    let bg = '';
+    
+    switch (source) {
+      case 'nvidia_ai':
+        label = '🤖 AI';
+        color = 'var(--accent-cyan)';
+        bg = 'rgba(6, 182, 212, 0.08)';
+        break;
+      case 'open_food_facts':
+        label = '🍎 OFF';
+        color = 'var(--accent-emerald)';
+        bg = 'rgba(16, 185, 129, 0.08)';
+        break;
+      case 'local_mock':
+        label = '💾 Local';
+        color = 'var(--accent-orange)';
+        bg = 'rgba(249, 115, 22, 0.08)';
+        break;
+      case 'manual':
+        label = '⚡ Manual';
+        color = 'var(--text-secondary)';
+        bg = 'rgba(255, 255, 255, 0.05)';
+        break;
+      default:
+        label = source;
+        color = 'var(--text-muted)';
+        bg = 'rgba(255, 255, 255, 0.03)';
+    }
+    
+    return (
+      <span style={{ 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        fontSize: '10px', 
+        fontWeight: '600', 
+        padding: '2px 6px', 
+        borderRadius: '4px', 
+        background: bg, 
+        color: color, 
+        border: `1px solid ${color}20`,
+        marginLeft: '8px',
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+      }}>
+        {label}
+      </span>
+    );
+  };
+
   const normalizeUnit = (u) => {
     if (!u) return 'gm';
     const lower = u.toLowerCase().trim();
@@ -546,7 +599,7 @@ const CalorieCalculator = () => {
                   <input 
                     type="text" 
                     required 
-                    placeholder="e.g. 2 eggs or boiled oats"
+                    placeholder="e.g. egg, banana, or oats"
                     className="input-field"
                     value={foodName}
                     onChange={(e) => setFoodName(e.target.value)}
@@ -572,26 +625,19 @@ const CalorieCalculator = () => {
                   >
                     <optgroup label="Weight">
                       <option value="gm">grams (gm)</option>
-                      <option value="kg">kilograms (kg)</option>
                     </optgroup>
                     <optgroup label="Volume">
                       <option value="ml">milliliters (ml)</option>
-                      <option value="l">litres (l)</option>
                     </optgroup>
                     <optgroup label="Count / Whole">
-                      <option value="whole">whole (fruit/item)</option>
-                      <option value="piece">piece(s)</option>
-                      <option value="slice">slice(s)</option>
+                      <option value="whole">whole (complete item)</option>
                     </optgroup>
                     <optgroup label="Measures">
                       <option value="cup">cup(s)</option>
                       <option value="bowl">bowl(s)</option>
-                      <option value="plate">plate(s)</option>
                       <option value="tbsp">tablespoon (tbsp)</option>
                       <option value="tsp">teaspoon (tsp)</option>
                       <option value="scoop">scoop</option>
-                      <option value="handful">handful</option>
-                      <option value="serving">serving</option>
                     </optgroup>
                   </select>
                 </div>
@@ -852,7 +898,10 @@ const CalorieCalculator = () => {
                       }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <strong style={{ fontSize: '15px' }}>{item.name}</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: '15px' }}>{item.name}</strong>
+                          {getSourceBadge(item.source)}
+                        </div>
                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                           {editingItemId === item._id ? (
                             <span 
@@ -1368,6 +1417,18 @@ const CalorieCalculator = () => {
 
             {/* Description / Nutrients */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+              {selectedMealDetail.source && selectedMealDetail.source !== 'unknown' && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '8px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Nutrient Source:</span>
+                  <strong style={{ color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                    {selectedMealDetail.source === 'nvidia_ai' ? '🤖 NVIDIA AI' :
+                     selectedMealDetail.source === 'open_food_facts' ? '🍎 Open Food Facts' :
+                     selectedMealDetail.source === 'local_mock' ? '💾 Local Fallback DB' :
+                     selectedMealDetail.source === 'manual' ? '⚡ Manual Entry' :
+                     selectedMealDetail.source}
+                  </strong>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.04)', paddingBottom: '8px' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Portion Logged:</span>
                 <strong style={{ color: 'var(--text-primary)' }}>{selectedMealDetail.quantity} {selectedMealDetail.unit}</strong>

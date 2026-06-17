@@ -9,6 +9,7 @@ const foodItemSchema = new mongoose.Schema({
   carbs: { type: Number, default: 0 },
   fat: { type: Number, default: 0 },
   fiber: { type: Number, default: 0 },
+  source: { type: String, default: 'unknown' } // where the data came from
 });
 
 const nutritionLogSchema = new mongoose.Schema(

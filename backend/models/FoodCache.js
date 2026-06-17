@@ -15,7 +15,9 @@ const foodCacheSchema = new mongoose.Schema(
     fat: { type: Number, required: true },      // g per baseQuantity
     fiber: { type: Number, default: 0 },
     baseUnit: { type: String, default: 'g' },   // unit type (g, piece, ml)
-    baseQuantity: { type: Number, default: 100 } // standard base quantity (e.g. 100g)
+    baseQuantity: { type: Number, default: 100 }, // standard base quantity (e.g. 100g)
+    wholeWeight: { type: Number, default: 100 }, // average weight in grams of a single whole item/serving
+    source: { type: String, default: 'unknown' } // original source of the nutrition details
   },
   {
     timestamps: true,
