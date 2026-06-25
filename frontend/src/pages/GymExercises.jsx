@@ -7,15 +7,155 @@ import {
   Trophy, Sparkles, TrendingUp, Edit, Copy, Info, X, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
-const PROMPT_SUGGESTIONS = [
-  "Generate a chest + triceps workout.",
-  "Give me a push day.",
-  "I only have dumbbells.",
-  "I am cutting.",
-  "I want a hypertrophy workout.",
-  "I have shoulder pain.",
-  "I want a 45 minute workout."
+
+
+const TRAINING_TYPES = [
+  { id: 'strength', name: 'Strength', desc: 'Focus on lifting and absolute power', icon: 'Trophy' },
+  { id: 'muscle_building', name: 'Muscle Building', desc: 'Hypertrophy and lean muscle growth', icon: 'TrendingUp' },
+  { id: 'gym', name: 'Gym Workout', desc: 'General fitness and gym routine', icon: 'Dumbbell' },
+  { id: 'pain_relief', name: 'Pain Relief', desc: 'Target discomfort and joint rehab', icon: 'AlertCircle' },
+  { id: 'stretching', name: 'Stretching & Mobility', desc: 'Flexibility and posture alignment', icon: 'RefreshCw' },
+  { id: 'yoga', name: 'Yoga', desc: 'Vinyasa flow, Hatha, or Yin balance', icon: 'Sparkles' },
+  { id: 'other', name: 'Other / Custom', desc: 'Create a fully custom workout spec', icon: 'Plus' }
 ];
+
+const EQUIPMENT_MAP = {
+  strength: ['Dumbbells', 'Barbell', 'Cables', 'Machines', 'Resistance Bands', 'Kettlebells'],
+  muscle_building: ['Dumbbells', 'Barbell', 'Cables', 'Machines', 'Resistance Bands'],
+  gym: ['Full Gym (All Machines)', 'Dumbbells', 'Barbell', 'Cables', 'Smith Machine'],
+  pain_relief: ['Foam Roller', 'Resistance Bands', 'Yoga Mat', 'None (Bodyweight)'],
+  stretching: ['Yoga Mat', 'Strap / Towel', 'Foam Roller', 'Yoga Blocks'],
+  yoga: ['Yoga Mat', 'Yoga Blocks', 'Yoga Strap', 'Bolster'],
+  other: ['Dumbbells', 'Barbell', 'Resistance Bands', 'None']
+};
+
+const ROUTINES_MAP = {
+  strength: [
+    { id: 'ppl', name: 'Push-Pull-Legs (PPL)' },
+    { id: 'upper_lower', name: 'Upper-Lower Split' },
+    { id: 'full_body', name: '5x5 Full Body Strength' },
+    { id: 'bro_split', name: '5-Day Bro Split' }
+  ],
+  muscle_building: [
+    { id: 'bro_split', name: 'Classic Bro Split' },
+    { id: 'ppl_hypertrophy', name: 'PPL Hypertrophy' },
+    { id: 'arnold', name: 'Arnold Split (Chest/Back, Shoulders/Arms, Legs)' },
+    { id: 'upper_lower_hyper', name: 'Upper-Lower Hypertrophy' }
+  ],
+  gym: [
+    { id: 'ppl', name: 'Push-Pull-Legs' },
+    { id: 'bro_split', name: 'Bro Split (Single Muscle Groups)' },
+    { id: 'full_body', name: 'Full Body Circuit' }
+  ],
+  pain_relief: [
+    { id: 'lower_back', name: 'Lower Back Pain Relief' },
+    { id: 'neck_shoulder', name: 'Neck & Shoulder Tension' },
+    { id: 'knee_hip', name: 'Knee & Hip Joint Relief' },
+    { id: 'wrist_forearm', name: 'Carpal Tunnel / Wrist Relief' }
+  ],
+  stretching: [
+    { id: 'full_flexibility', name: 'Full Body Flexibility' },
+    { id: 'morning_mobility', name: 'Morning Joint Mobility' },
+    { id: 'post_workout', name: 'Post-Workout Cool Down' },
+    { id: 'desk_worker', name: 'Desk Worker Posture Fix' }
+  ],
+  yoga: [
+    { id: 'vinyasa', name: 'Vinyasa Flow (Dynamic)' },
+    { id: 'hatha', name: 'Hatha Yoga (Gentle & Slow)' },
+    { id: 'yin', name: 'Yin Yoga (Deep Stretch & Restorative)' },
+    { id: 'power', name: 'Power Yoga (Strength & Sweat)' }
+  ]
+};
+
+const renderTrainingIcon = (iconName, size = 18) => {
+  switch (iconName) {
+    case 'Trophy': return <Trophy size={size} />;
+    case 'TrendingUp': return <TrendingUp size={size} />;
+    case 'Dumbbell': return <Dumbbell size={size} />;
+    case 'AlertCircle': return <AlertCircle size={size} />;
+    case 'RefreshCw': return <RefreshCw size={size} />;
+    case 'Sparkles': return <Sparkles size={size} />;
+    case 'Plus': return <Plus size={size} />;
+    default: return <Dumbbell size={size} />;
+  }
+};
+
+const getExerciseMetrics = (workoutName, exerciseName) => {
+  const exLower = (exerciseName || '').toLowerCase();
+  const workLower = (workoutName || '').toLowerCase();
+  
+  // Recovery keywords specifically for exercise name
+  const isRecoveryEx = 
+    exLower.includes('stretch') || 
+    exLower.includes('yoga') || 
+    exLower.includes('pose') || 
+    exLower.includes('hold') || 
+    exLower.includes('breath') || 
+    exLower.includes('mobility') || 
+    exLower.includes('decompression') || 
+    exLower.includes('rehab') ||
+    exLower.includes('release') ||
+    exLower.includes('relief');
+     
+  // Recovery keywords for the workout, but only apply if the exercise itself is not a known strength exercise
+  const isStrengthEx = 
+    exLower.includes('press') || 
+    exLower.includes('lift') || 
+    exLower.includes('squat') || 
+    exLower.includes('curl') || 
+    exLower.includes('extension') || 
+    exLower.includes('row') || 
+    exLower.includes('pull') || 
+    exLower.includes('raise') || 
+    exLower.includes('fly') || 
+    exLower.includes('pushup') || 
+    exLower.includes('dip') || 
+    exLower.includes('shrug') || 
+    exLower.includes('crunch');
+
+  const isRecoveryWork = 
+    workLower.includes('yoga') || 
+    workLower.includes('stretch') || 
+    workLower.includes('pain') || 
+    workLower.includes('relief') || 
+    workLower.includes('rehab') || 
+    workLower.includes('mobility') || 
+    workLower.includes('decompression') || 
+    workLower.includes('flexibility');
+
+  if (isRecoveryEx || (isRecoveryWork && !isStrengthEx)) {
+    return {
+      weightLabel: 'Hold Time (s)',
+      repsLabel: 'Breaths',
+      weightPlaceholder: '30',
+      repsPlaceholder: '5'
+    };
+  }
+  
+  return {
+    weightLabel: 'Weight (kg)',
+    repsLabel: 'Reps',
+    weightPlaceholder: '0',
+    repsPlaceholder: '0'
+  };
+};
+
+const getWorkoutCategory = (workoutName) => {
+  const nameLower = (workoutName || '').toLowerCase();
+  if (
+    nameLower.includes('yoga') || 
+    nameLower.includes('stretch') || 
+    nameLower.includes('pain') || 
+    nameLower.includes('relief') || 
+    nameLower.includes('rehab') || 
+    nameLower.includes('mobility') || 
+    nameLower.includes('decompression') || 
+    nameLower.includes('flexibility')
+  ) {
+    return 'recovery';
+  }
+  return 'strength';
+};
 
 const GymExercises = () => {
   const { user, token, API_URL } = useAuth();
@@ -41,13 +181,20 @@ const GymExercises = () => {
     return `${dayName}, ${dateLabel}`;
   };
   const [log, setLog] = useState({ exercises: [], skipped: false, notes: '', duration: 0, name: '', difficulty: '', estimatedDuration: 0 });
-  
-  // Tabs: 'workout' or 'analytics'
-  const [activeTab, setActiveTab] = useState('workout');
 
   // Custom prompt state
   const [promptText, setPromptText] = useState('');
   const [showPromptGenerator, setShowPromptGenerator] = useState(false);
+
+  // Customizer state variables
+  const [coachTrainingType, setCoachTrainingType] = useState('strength');
+  const [coachHasEquipment, setCoachHasEquipment] = useState('yes');
+  const [coachSelectedEquipments, setCoachSelectedEquipments] = useState([]);
+  const [coachSelectedRoutine, setCoachSelectedRoutine] = useState('');
+  const [coachCustomPrompt, setCoachCustomPrompt] = useState('');
+  const [coachAppendMode, setCoachAppendMode] = useState(false);
+  const [coachPlanDuration, setCoachPlanDuration] = useState('1_day');
+  const [coachSelectedDays, setCoachSelectedDays] = useState([]);
 
   // Custom exercise form state
   const [customName, setCustomName] = useState('');
@@ -71,12 +218,6 @@ const GymExercises = () => {
 
   // Expanded card state
   const [expandedExercises, setExpandedExercises] = useState({});
-
-  // History & Trends Analytics
-  const [historyAnalytics, setHistoryAnalytics] = useState([]);
-  const [analyticsSummary, setAnalyticsSummary] = useState(null);
-  const [loadingSummary, setLoadingSummary] = useState(false);
-  const [selectedTrendExercise, setSelectedTrendExercise] = useState('');
 
   // Individual Exercise History Panels (within daily workout list)
   const [exerciseHistory, setExerciseHistory] = useState({});
@@ -153,66 +294,9 @@ const GymExercises = () => {
     }
   }, [date, token, API_URL, user.onboardingCompleted.workout]);
 
-  const fetchHistoryAnalytics = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/workouts/analytics/trends`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setHistoryAnalytics(data);
-    } catch (err) {
-      console.error('Failed to fetch analytics history:', err);
-    }
-  }, [token, API_URL]);
-
-  const fetchAnalyticsSummary = useCallback(async () => {
-    setLoadingSummary(true);
-    try {
-      const res = await fetch(`${API_URL}/workouts/analytics/summary`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setAnalyticsSummary(data);
-    } catch (err) {
-      console.error('Failed to fetch analytics summary:', err);
-    } finally {
-      setLoadingSummary(false);
-    }
-  }, [token, API_URL]);
-
   useEffect(() => {
-    const load = async () => {
-      await Promise.resolve();
-      fetchWorkoutLog();
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
-    };
-    load();
-  }, [fetchWorkoutLog, fetchHistoryAnalytics, fetchAnalyticsSummary]);
-
-  // Sync active seconds with loaded workout log duration
-  useEffect(() => {
-    const sync = async () => {
-      await Promise.resolve();
-      if (log && log.duration) {
-        setActiveSeconds(log.duration);
-      } else {
-        setActiveSeconds(0);
-      }
-    };
-    sync();
-  }, [log]);
-
-  // Auto-select first exercise for analytics trend when tab changes or data updates
-  useEffect(() => {
-    const autoSelect = async () => {
-      await Promise.resolve();
-      if (activeTab === 'analytics' && historyAnalytics.length > 0 && !selectedTrendExercise) {
-        setSelectedTrendExercise(historyAnalytics[0].name);
-      }
-    };
-    autoSelect();
-  }, [activeTab, historyAnalytics, selectedTrendExercise]);
+    fetchWorkoutLog();
+  }, [fetchWorkoutLog]);
 
   const saveDuration = useCallback(async (secs) => {
     try {
@@ -289,12 +373,21 @@ const GymExercises = () => {
   };
 
   const getPriorPerformance = (exerciseName) => {
-    const match = historyAnalytics.find(h => h.name.toLowerCase() === exerciseName.toLowerCase());
-    if (match && match.history && match.history.length > 0) {
-      const lastEntry = match.history[match.history.length - 1];
-      return `${lastEntry.sets} sets (Max: ${lastEntry.maxWeight}kg / Vol: ${lastEntry.volume}kg)`;
+    const key = exerciseName.toLowerCase();
+    const hist = exerciseHistory[key];
+    if (hist && hist.length > 0) {
+      const lastEntry = hist[0];
+      const metrics = getExerciseMetrics(log.name, exerciseName);
+      const isTimeBased = metrics.weightLabel === 'Hold Time (s)';
+      const setsFormatted = lastEntry.sets.map(s => {
+        if (isTimeBased) {
+          return `${s.weight}s x ${s.reps}`;
+        }
+        return `${s.weight}kg x ${s.reps}`;
+      }).join(', ');
+      return `${lastEntry.sets.length} sets completed on ${lastEntry.date} (${setsFormatted})`;
     }
-    return 'N/A';
+    return 'N/A (expand below to load history)';
   };
 
   const toggleExpandExercise = (exerciseId) => {
@@ -348,10 +441,6 @@ const GymExercises = () => {
       if (!res.ok) throw new Error(data.message);
       
       setLog(data);
-
-      // Sync analytics summaries
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
     } catch (err) {
       setError('Failed to update set details.');
       console.error(err);
@@ -369,8 +458,6 @@ const GymExercises = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       setLog(data);
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
     } catch (err) {
       setError('Failed to toggle exercise completion.');
       console.error(err);
@@ -400,8 +487,6 @@ const GymExercises = () => {
 
       // Re-fetch log for today
       fetchWorkoutLog();
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
     } catch (err) {
       setError(err.message);
       console.error(err);
@@ -410,8 +495,8 @@ const GymExercises = () => {
     }
   };
 
-  // Generate new AI workout with prompt options
-  const handleGenerateWorkout = async (customPromptValue) => {
+  // Generate new AI workout with prompt options and program durations
+  const handleGenerateWorkout = async (customPromptValue, appendMode = false, planDuration = '1_day', selectedDays = []) => {
     setGenerating(true);
     setError('');
     try {
@@ -421,7 +506,11 @@ const GymExercises = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ date, prompt: customPromptValue || promptText })
+        body: JSON.stringify({ 
+          date, 
+          prompt: customPromptValue || promptText, 
+          append: appendMode 
+        })
       });
 
       const data = await res.json();
@@ -430,8 +519,50 @@ const GymExercises = () => {
       setLog(data.log);
       setPromptText('');
       setShowPromptGenerator(false);
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
+
+      // Handle Plan Duration Duplication (copy to next N days or weekly routine)
+      const targetDates = [];
+      const baseDate = new Date(date);
+
+      if (planDuration === '2_days') {
+        const nextDay = new Date(baseDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        targetDates.push(nextDay.toISOString().split('T')[0]);
+      } else if (planDuration === '3_days') {
+        for (let i = 1; i <= 2; i++) {
+          const nextDay = new Date(baseDate);
+          nextDay.setDate(nextDay.getDate() + i);
+          targetDates.push(nextDay.toISOString().split('T')[0]);
+        }
+      } else if (planDuration === '7_days') {
+        for (let i = 1; i <= 6; i++) {
+          const nextDay = new Date(baseDate);
+          nextDay.setDate(nextDay.getDate() + i);
+          targetDates.push(nextDay.toISOString().split('T')[0]);
+        }
+      } else if (planDuration === 'weekly_routine' && selectedDays.length > 0) {
+        for (let i = 1; i <= 7; i++) {
+          const nextDay = new Date(baseDate);
+          nextDay.setDate(nextDay.getDate() + i);
+          const dayName = nextDay.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
+          if (selectedDays.includes(dayName)) {
+            targetDates.push(nextDay.toISOString().split('T')[0]);
+          }
+        }
+      }
+
+      if (targetDates.length > 0) {
+        await Promise.all(targetDates.map(tDate => 
+          fetch(`${API_URL}/workouts/${date}/duplicate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({ targetDate: tDate })
+          })
+        ));
+      }
     } catch (err) {
       setError(err.message);
       console.error(err);
@@ -466,8 +597,6 @@ const GymExercises = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       setLog(data);
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
     } catch (err) {
       setError('Failed to toggle skip status.');
       console.error(err);
@@ -484,8 +613,6 @@ const GymExercises = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       setLog(data);
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
     } catch (err) {
       setError('Failed to toggle rest day.');
       console.error(err);
@@ -518,8 +645,6 @@ const GymExercises = () => {
       setLog(data);
       setCustomName('');
       setCustomMuscles('');
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
     } catch (err) {
       setError('Failed to add custom exercise.');
       console.error(err);
@@ -536,8 +661,6 @@ const GymExercises = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
       setLog(data);
-      fetchHistoryAnalytics();
-      fetchAnalyticsSummary();
     } catch (err) {
       setError('Failed to delete exercise.');
       console.error(err);
@@ -683,146 +806,23 @@ const GymExercises = () => {
     return vol;
   };
 
-  const renderCustomSvgChart = (historyData, metric, strokeColor, gradientId) => {
-    // Sort chronological ascending
-    const data = [...historyData].sort((a, b) => a.date.localeCompare(b.date));
-    
-    const width = 500;
-    const height = 220;
-    
-    if (data.length === 1) {
-      const val = data[0][metric];
-      const displayDate = data[0].date.slice(5).replace('-', '/');
-      return (
-        <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
-          <text x="250" y="80" textAnchor="middle" fill="var(--text-muted)" fontSize="12">Single entry logged on {displayDate}</text>
-          <circle cx="250" cy="120" r="8" fill={strokeColor} />
-          <text x="250" y="150" textAnchor="middle" fill="var(--text-primary)" fontWeight="bold" fontSize="18">{val} kg</text>
-        </svg>
-      );
+  const calculateTotalHoldTime = () => {
+    let totalHold = 0;
+    if (log && log.exercises) {
+      log.exercises.forEach(ex => {
+        if (ex.setDetails) {
+          const metrics = getExerciseMetrics(log.name, ex.name);
+          if (metrics.weightLabel === 'Hold Time (s)') {
+            ex.setDetails.forEach(s => {
+              if (s.completed && s.weight > 0) {
+                totalHold += s.weight;
+              }
+            });
+          }
+        }
+      });
     }
-    
-    const padX = 45;
-    const padYTop = 25;
-    const padYBottom = 35;
-    const graphWidth = width - padX - 20;
-    const graphHeight = height - padYTop - padYBottom;
-    
-    const values = data.map(d => d[metric]);
-    const minY = Math.min(...values);
-    const maxY = Math.max(...values);
-    const diffY = maxY - minY;
-    
-    // Add buffer scaling
-    const bufferY = diffY * 0.15 || 5;
-    const scaleMinY = Math.max(0, minY - bufferY);
-    const scaleMaxY = maxY + bufferY;
-    const scaleDiff = scaleMaxY - scaleMinY;
-    
-    const points = data.map((d, i) => {
-      const x = padX + (i / (data.length - 1)) * graphWidth;
-      const y = padYTop + graphHeight - ((d[metric] - scaleMinY) / scaleDiff) * graphHeight;
-      return { x, y, value: d[metric], date: d.date };
-    });
-    
-    const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - padYBottom} L ${points[0].x} ${height - padYBottom} Z`;
-    
-    // Calculate 3 y-ticks
-    const tickCount = 3;
-    const yTicks = Array.from({ length: tickCount }, (_, idx) => {
-      const val = scaleMinY + (idx / (tickCount - 1)) * scaleDiff;
-      const y = padYTop + graphHeight - (idx / (tickCount - 1)) * graphHeight;
-      return { val: Math.round(val), y };
-    });
-    
-    return (
-      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.25" />
-            <stop offset="100%" stopColor={strokeColor} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        
-        {/* Horizontal grid lines */}
-        {yTicks.map((tick, idx) => (
-          <g key={idx}>
-            <line 
-              x1={padX} 
-              y1={tick.y} 
-              x2={width - 15} 
-              y2={tick.y} 
-              stroke="rgba(255,255,255,0.03)" 
-              strokeWidth="1" 
-            />
-            <text 
-              x={padX - 8} 
-              y={tick.y + 4} 
-              textAnchor="end" 
-              fill="var(--text-muted)" 
-              fontSize="10"
-              fontFamily="monospace"
-            >
-              {tick.val}
-            </text>
-          </g>
-        ))}
-        
-        {/* Fill Area */}
-        <path d={areaPath} fill={`url(#${gradientId})`} />
-        
-        {/* Path Stroke */}
-        <path d={linePath} fill="transparent" stroke={strokeColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        
-        {/* Points & Values */}
-        {points.map((p, idx) => {
-          const displayDate = p.date.slice(5).replace('-', '/');
-          return (
-            <g key={idx}>
-              {/* Date ticks on X-axis */}
-              <text 
-                x={p.x} 
-                y={height - 12} 
-                textAnchor="middle" 
-                fill="var(--text-muted)" 
-                fontSize="10"
-                fontFamily="monospace"
-              >
-                {displayDate}
-              </text>
-              
-              {/* Vertical dotted grid line from point to X axis */}
-              <line 
-                x1={p.x} 
-                y1={p.y} 
-                x2={p.x} 
-                y2={height - padYBottom} 
-                stroke="rgba(255, 255, 255, 0.05)" 
-                strokeWidth="1" 
-                strokeDasharray="2,2" 
-              />
-              
-              {/* Point circle */}
-              <circle cx={p.x} cy={p.y} r="5" fill="var(--bg-dark)" stroke={strokeColor} strokeWidth="2" />
-              
-              {/* Value Label text directly above circle */}
-              <text 
-                x={p.x} 
-                y={p.y - 8} 
-                textAnchor="middle" 
-                fill="var(--text-primary)" 
-                fontSize="10.5" 
-                fontWeight="bold"
-                fontFamily="monospace"
-              >
-                {p.value}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-    );
+    return totalHold;
   };
 
   return (
@@ -875,41 +875,7 @@ const GymExercises = () => {
         </div>
       )}
 
-      {/* Tabs navigation */}
-      <div style={{ display: 'flex', gap: '16px', borderBottom: '1px solid var(--border-light)', marginBottom: '24px' }}>
-        <button 
-          onClick={() => setActiveTab('workout')} 
-          style={{
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'workout' ? '2px solid var(--accent-purple)' : '2px solid transparent',
-            color: activeTab === 'workout' ? 'var(--text-primary)' : 'var(--text-muted)',
-            padding: '8px 16px 12px 16px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            transition: 'var(--transition)'
-          }}
-        >
-          Daily Workout
-        </button>
-        <button 
-          onClick={() => setActiveTab('analytics')} 
-          style={{
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'analytics' ? '2px solid var(--accent-purple)' : '2px solid transparent',
-            color: activeTab === 'analytics' ? 'var(--text-primary)' : 'var(--text-muted)',
-            padding: '8px 16px 12px 16px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            fontSize: '16px',
-            transition: 'var(--transition)'
-          }}
-        >
-          Progress Analytics
-        </button>
-      </div>
+      {/* Tabs navigation removed */}
 
       {/* Yesterday Unmarked Resolution Prompt */}
       {hasUnmarkedYesterday ? (
@@ -939,7 +905,7 @@ const GymExercises = () => {
             </button>
           </div>
         </div>
-      ) : activeTab === 'workout' ? (
+      ) : (
         loading ? (
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }} className="page-fade-in">
             <div>
@@ -1042,68 +1008,432 @@ const GymExercises = () => {
                 </div>
               )}
 
-              {/* Prompt Generator Card (Shown when custom prompt is toggled or when board is empty and generator is opened) */}
+              {/* Prompt Generator Card (Customized AI Fitness Coach Form) */}
               {(showPromptGenerator || ((!log.exercises || log.exercises.length === 0) && showPromptGenerator)) && (
-                <div className="card" style={{ marginBottom: '24px', border: '1px solid rgba(168, 85, 247, 0.2)', background: 'rgba(168, 85, 247, 0.02)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <Sparkles size={20} className="text-purple animate-pulse" /> Ask AI Fitness Coach
-                  </h3>
-                  {log.exercises && log.exercises.length > 0 && (
-                    <button 
-                      onClick={() => setShowPromptGenerator(false)} 
-                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                    >
-                      <X size={18} />
-                    </button>
-                  )}
-                </div>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px', lineHeight: '1.5' }}>
-                  Tell the AI Coach what you want to train, your equipment constraints, focus area, or physical discomfort.
-                </p>
-                <div className="form-group" style={{ marginBottom: '16px' }}>
-                  <textarea
-                    className="input-field"
-                    style={{ minHeight: '80px', resize: 'vertical', display: 'block' }}
-                    placeholder="e.g. Give me a 45 minute dumbbells-only push day workout, avoiding overhead shoulder presses due to shoulder pain."
-                    value={promptText}
-                    onChange={(e) => setPromptText(e.target.value)}
-                  />
-                </div>
-                
-                {/* Suggestions List */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
-                  {PROMPT_SUGGESTIONS.map((pill, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ 
-                        fontSize: '12px', 
-                        padding: '6px 12px', 
-                        borderRadius: '20px', 
-                        background: 'rgba(255,255,255,0.02)', 
-                        borderColor: 'rgba(255,255,255,0.05)',
-                        color: 'var(--text-secondary)'
-                      }}
-                      onClick={() => setPromptText(pill)}
-                    >
-                      {pill}
-                    </button>
-                  ))}
-                </div>
+                <div className="card" style={{ marginBottom: '24px', border: '1px solid rgba(168, 85, 247, 0.25)', background: 'rgba(168, 85, 247, 0.02)', padding: '28px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '20px', fontWeight: '700' }}>
+                      <Sparkles size={22} className="text-purple animate-pulse" /> AI Fitness Coach Customizer
+                    </h3>
+                    {log.exercises && log.exercises.length > 0 && (
+                      <button 
+                        onClick={() => setShowPromptGenerator(false)} 
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      >
+                        <X size={20} />
+                      </button>
+                    )}
+                  </div>
 
-                <button 
-                  onClick={() => handleGenerateWorkout(promptText)} 
-                  disabled={generating} 
-                  className="btn btn-primary"
-                  style={{ width: '100%', padding: '12px' }}
-                >
-                  <RefreshCw size={16} className={generating ? 'animate-spin' : ''} />
-                  {generating ? 'AI Fitness Coach is designing your workout...' : 'Generate Workout Routine'}
-                </button>
-              </div>
-            )}
+                  {/* Section 1: Type of Training */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <label className="form-label" style={{ fontWeight: '700', fontSize: '14.5px', marginBottom: '12px', display: 'block', color: 'var(--text-primary)' }}>
+                      1. What type of training would you like to plan?
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                      {TRAINING_TYPES.map((type) => {
+                        const isSelected = coachTrainingType === type.id;
+                        return (
+                          <div 
+                            key={type.id}
+                            onClick={() => {
+                              setCoachTrainingType(type.id);
+                              setCoachSelectedRoutine('');
+                              setCoachSelectedEquipments([]);
+                              if (['strength', 'muscle_building', 'gym'].includes(type.id)) {
+                                setCoachHasEquipment('yes');
+                              } else {
+                                setCoachHasEquipment('no');
+                              }
+                            }}
+                            style={{
+                              padding: '16px',
+                              background: isSelected ? 'rgba(168, 85, 247, 0.08)' : 'rgba(255, 255, 255, 0.01)',
+                              border: isSelected ? '2px solid var(--accent-purple)' : '1px solid var(--border-light)',
+                              borderRadius: 'var(--radius)',
+                              cursor: 'pointer',
+                              transition: 'var(--transition)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px',
+                              boxShadow: isSelected ? '0 4px 15px rgba(168, 85, 247, 0.15)' : 'none'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: isSelected ? 'var(--accent-purple)' : 'var(--text-secondary)', fontWeight: '700' }}>
+                              {renderTrainingIcon(type.icon, 18)}
+                              <span style={{ fontSize: '14.5px' }}>{type.name}</span>
+                            </div>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.3' }}>{type.desc}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Section 2: Equipment Availability */}
+                  <div style={{ marginBottom: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                    <label className="form-label" style={{ fontWeight: '700', fontSize: '14.5px', marginBottom: '12px', display: 'block', color: 'var(--text-primary)' }}>
+                      2. Equipment Availability
+                    </label>
+
+                    {['strength', 'muscle_building', 'gym'].includes(coachTrainingType) ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* Toggle segment */}
+                        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius)', padding: '4px', width: 'fit-content' }}>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => {
+                              setCoachHasEquipment('no');
+                              setCoachSelectedEquipments([]);
+                            }}
+                            style={{ 
+                              padding: '8px 16px', 
+                              fontSize: '13px', 
+                              borderRadius: '8px', 
+                              border: 'none',
+                              backgroundColor: coachHasEquipment === 'no' ? 'var(--accent-purple)' : 'transparent',
+                              color: coachHasEquipment === 'no' ? '#fff' : 'var(--text-secondary)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            No Equipment (Bodyweight Only)
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setCoachHasEquipment('yes')}
+                            style={{ 
+                              padding: '8px 16px', 
+                              fontSize: '13px', 
+                              borderRadius: '8px', 
+                              border: 'none',
+                              backgroundColor: coachHasEquipment === 'yes' ? 'var(--accent-purple)' : 'transparent',
+                              color: coachHasEquipment === 'yes' ? '#fff' : 'var(--text-secondary)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Yes, Equipment Available
+                          </button>
+                        </div>
+
+                        {/* Equipment options */}
+                        {coachHasEquipment === 'yes' && (
+                          <div className="page-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>Select available equipment:</span>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                              {EQUIPMENT_MAP[coachTrainingType]?.map(eq => {
+                                const isChecked = coachSelectedEquipments.includes(eq);
+                                return (
+                                  <label 
+                                    key={eq}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '8px',
+                                      padding: '8px 14px',
+                                      borderRadius: '20px',
+                                      background: isChecked ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255,255,255,0.02)',
+                                      border: isChecked ? '1px solid var(--accent-purple)' : '1px solid var(--border-light)',
+                                      cursor: 'pointer',
+                                      fontSize: '13px',
+                                      color: isChecked ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                      transition: 'var(--transition)'
+                                    }}
+                                  >
+                                    <input 
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {
+                                        setCoachSelectedEquipments(prev => 
+                                          prev.includes(eq) ? prev.filter(item => item !== eq) : [...prev, eq]
+                                        );
+                                      }}
+                                      style={{ display: 'none' }}
+                                    />
+                                    <div style={{
+                                      width: '14px',
+                                      height: '14px',
+                                      borderRadius: '3px',
+                                      border: '1px solid rgba(255,255,255,0.3)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      backgroundColor: isChecked ? 'var(--accent-purple)' : 'transparent'
+                                    }}>
+                                      {isChecked && <Check size={10} style={{ color: '#fff' }} />}
+                                    </div>
+                                    {eq}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Yoga, stretching, pain relief: list equipment checkboxes directly */
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>Select gear you have access to:</span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                          {EQUIPMENT_MAP[coachTrainingType]?.map(eq => {
+                            const isChecked = coachSelectedEquipments.includes(eq);
+                            return (
+                              <label 
+                                key={eq}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  padding: '8px 14px',
+                                  borderRadius: '20px',
+                                  background: isChecked ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255,255,255,0.02)',
+                                  border: isChecked ? '1px solid var(--accent-purple)' : '1px solid var(--border-light)',
+                                  cursor: 'pointer',
+                                  fontSize: '13px',
+                                  color: isChecked ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                  transition: 'var(--transition)'
+                                }}
+                              >
+                                <input 
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    setCoachSelectedEquipments(prev => 
+                                      prev.includes(eq) ? prev.filter(item => item !== eq) : [...prev, eq]
+                                    );
+                                  }}
+                                  style={{ display: 'none' }}
+                                />
+                                <div style={{
+                                  width: '14px',
+                                  height: '14px',
+                                  borderRadius: '3px',
+                                  border: '1px solid rgba(255,255,255,0.3)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  backgroundColor: isChecked ? 'var(--accent-purple)' : 'transparent'
+                                }}>
+                                  {isChecked && <Check size={10} style={{ color: '#fff' }} />}
+                                </div>
+                                {eq}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section 3: Pre-existing Routines / Focus Areas */}
+                  {ROUTINES_MAP[coachTrainingType] && ROUTINES_MAP[coachTrainingType].length > 0 && (
+                    <div style={{ marginBottom: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }} className="page-fade-in">
+                      <label className="form-label" style={{ fontWeight: '700', fontSize: '14.5px', marginBottom: '12px', display: 'block', color: 'var(--text-primary)' }}>
+                        {coachTrainingType === 'pain_relief' ? '3. Select focus discomfort area' : '3. Select Routine or Split'}
+                      </label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {ROUTINES_MAP[coachTrainingType].map((routine) => {
+                          const isSelected = coachSelectedRoutine === routine.id;
+                          return (
+                            <button
+                              key={routine.id}
+                              type="button"
+                              onClick={() => setCoachSelectedRoutine(isSelected ? '' : routine.id)}
+                              className="btn"
+                              style={{
+                                fontSize: '13px',
+                                padding: '8px 16px',
+                                borderRadius: '20px',
+                                border: isSelected ? '1px solid var(--accent-purple)' : '1px solid var(--border-light)',
+                                background: isSelected ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255,255,255,0.02)',
+                                color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                transition: 'var(--transition)'
+                              }}
+                            >
+                              {routine.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Section 4: Planning Duration & Generation Mode */}
+                  <div style={{ marginBottom: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                    <label className="form-label" style={{ fontWeight: '700', fontSize: '14.5px', marginBottom: '12px', display: 'block', color: 'var(--text-primary)' }}>
+                      4. Planning Duration & Mode
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '16px' }}>
+                      {/* Generation Mode */}
+                      <div>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>Generation Mode</span>
+                        <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-light)', borderRadius: 'var(--radius)', padding: '4px' }}>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setCoachAppendMode(false)}
+                            style={{ 
+                              flex: 1,
+                              padding: '8px 12px', 
+                              fontSize: '12.5px', 
+                              borderRadius: '8px', 
+                              border: 'none',
+                              backgroundColor: !coachAppendMode ? 'var(--accent-purple)' : 'transparent',
+                              color: !coachAppendMode ? '#fff' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              transition: 'var(--transition)'
+                            }}
+                          >
+                            Replace Plan
+                          </button>
+                          <button
+                            type="button"
+                            className="btn"
+                            onClick={() => setCoachAppendMode(true)}
+                            style={{ 
+                              flex: 1,
+                              padding: '8px 12px', 
+                              fontSize: '12.5px', 
+                              borderRadius: '8px', 
+                              border: 'none',
+                              backgroundColor: coachAppendMode ? 'var(--accent-purple)' : 'transparent',
+                              color: coachAppendMode ? '#fff' : 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              transition: 'var(--transition)'
+                            }}
+                          >
+                            Append/Stack
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Plan Duration */}
+                      <div>
+                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '8px' }}>How long is this planned for?</span>
+                        <select
+                          className="input-field"
+                          value={coachPlanDuration}
+                          onChange={(e) => setCoachPlanDuration(e.target.value)}
+                          style={{ padding: '9px 12px', fontSize: '13px', borderRadius: 'var(--radius)', background: 'var(--bg-dark)', border: '1px solid var(--border-light)', color: 'var(--text-primary)', width: '100%' }}
+                        >
+                          <option value="1_day">Only Today</option>
+                          <option value="2_days">Next 2 Days</option>
+                          <option value="3_days">Next 3 Days</option>
+                          <option value="7_days">Next 7 Days</option>
+                          <option value="weekly_routine">Weekly Routine (Specific Days)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Weekday Selector for Weekly Routine */}
+                    {coachPlanDuration === 'weekly_routine' && (
+                      <div className="page-fade-in" style={{ background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-light)', padding: '16px', borderRadius: 'var(--radius)', marginBottom: '16px' }}>
+                        <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)', fontWeight: '600', display: 'block', marginBottom: '10px' }}>Select days to schedule this routine:</span>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {[
+                            { id: 'mon', name: 'Mon' },
+                            { id: 'tue', name: 'Tue' },
+                            { id: 'wed', name: 'Wed' },
+                            { id: 'thu', name: 'Thu' },
+                            { id: 'fri', name: 'Fri' },
+                            { id: 'sat', name: 'Sat' },
+                            { id: 'sun', name: 'Sun' }
+                          ].map((day) => {
+                            const isSelected = coachSelectedDays.includes(day.id);
+                            return (
+                              <button
+                                key={day.id}
+                                type="button"
+                                onClick={() => {
+                                  setCoachSelectedDays(prev => 
+                                    prev.includes(day.id) ? prev.filter(d => d !== day.id) : [...prev, day.id]
+                                  );
+                                }}
+                                className="btn"
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '12.5px',
+                                  borderRadius: '20px',
+                                  border: isSelected ? '1px solid var(--accent-purple)' : '1px solid var(--border-light)',
+                                  background: isSelected ? 'rgba(168, 85, 247, 0.1)' : 'rgba(255,255,255,0.02)',
+                                  color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                  cursor: 'pointer',
+                                  fontWeight: isSelected ? 'bold' : 'normal',
+                                  transition: 'var(--transition)'
+                                }}
+                              >
+                                {day.name}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Section 5: Custom Coach Instructions */}
+                  <div style={{ marginBottom: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
+                    <label className="form-label" style={{ fontWeight: '700', fontSize: '14.5px', marginBottom: '8px', display: 'block', color: 'var(--text-primary)' }}>
+                      5. Custom guidelines or focus instructions (Optional)
+                    </label>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '12px' }}>
+                      Add details about injuries, limitations, time constraints, or specific exercises to target.
+                    </p>
+                    <textarea
+                      className="input-field"
+                      style={{ minHeight: '80px', resize: 'vertical', display: 'block' }}
+                      placeholder="e.g. Focus on chest development, skip any exercises causing wrist strain, or keep total duration below 40 minutes."
+                      value={coachCustomPrompt}
+                      onChange={(e) => setCoachCustomPrompt(e.target.value)}
+                    />
+                  </div>
+
+                  <button 
+                    onClick={() => {
+                      const typeName = TRAINING_TYPES.find(t => t.id === coachTrainingType)?.name || coachTrainingType;
+                      let generatedPrompt = `Design a ${typeName} workout.`;
+                      
+                      if (coachSelectedRoutine) {
+                        const routineDetail = ROUTINES_MAP[coachTrainingType]?.find(r => r.id === coachSelectedRoutine);
+                        if (routineDetail) {
+                          if (coachTrainingType === 'pain_relief') {
+                            generatedPrompt += ` Focus on pain relief and stretching for: ${routineDetail.name}.`;
+                          } else {
+                            generatedPrompt += ` Follow this routine split/style: ${routineDetail.name}.`;
+                          }
+                        }
+                      }
+                      
+                      if (coachHasEquipment === 'yes' && coachSelectedEquipments.length > 0) {
+                        generatedPrompt += ` Available equipment: ${coachSelectedEquipments.join(', ')}.`;
+                      } else if (coachHasEquipment === 'no' || (['strength', 'muscle_building', 'gym'].includes(coachTrainingType) && coachHasEquipment === 'no')) {
+                        generatedPrompt += ` No equipment available (bodyweight/calisthenics only).`;
+                      }
+                      
+                      const isRecovery = ['stretching', 'yoga', 'pain_relief'].includes(coachTrainingType);
+                      if (isRecovery) {
+                        generatedPrompt += ` Make this a recovery/mobility routine. IMPORTANT: For stretching/yoga/pain relief, specify the estimated hold time in seconds (e.g., 30 or 45, as an integer representing seconds, don't include text units) in the 'weight' field, and the number of breath cycles or repetitions (e.g., 5 or 8, as an integer) in the 'reps' field.`;
+                      }
+                      
+                      if (coachCustomPrompt.trim()) {
+                        generatedPrompt += ` Additional details: ${coachCustomPrompt.trim()}`;
+                      }
+                      
+                      handleGenerateWorkout(generatedPrompt, coachAppendMode, coachPlanDuration, coachSelectedDays);
+                    }} 
+                    disabled={generating} 
+                    className="btn btn-primary"
+                    style={{ width: '100%', padding: '14px', fontSize: '15px', backgroundColor: 'var(--accent-purple)', borderColor: 'var(--accent-purple)' }}
+                  >
+                    <RefreshCw size={16} className={generating ? 'animate-spin' : ''} style={{ marginRight: '8px' }} />
+                    {generating ? 'AI Coach is crafting your workout...' : 'Generate Customized AI Workout'}
+                  </button>
+                </div>
+              )}
 
             {/* Daily Exercises Logs and Dashboard */}
             {log.exercises && log.exercises.length > 0 && (
@@ -1185,10 +1515,18 @@ const GymExercises = () => {
                   {/* Volume stats row */}
                   {log.exercises && log.exercises.length > 0 && !log.skipped && (
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center', width: '100%', flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
-                        <Activity size={15} className="text-purple" />
-                        <span>Volume: <strong>{calculateTotalVolume()} kg</strong></span>
-                      </div>
+                      {log.exercises.some(ex => getExerciseMetrics(log.name, ex.name).weightLabel === 'Weight (kg)') && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+                          <Activity size={15} className="text-purple" />
+                          <span>Volume: <strong>{calculateTotalVolume()} kg</strong></span>
+                        </div>
+                      )}
+                      {log.exercises.some(ex => getExerciseMetrics(log.name, ex.name).weightLabel === 'Hold Time (s)') && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', backgroundColor: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--border-light)' }}>
+                          <Activity size={15} className="text-purple" />
+                          <span>Total Hold Time: <strong>{calculateTotalHoldTime()}s</strong></span>
+                        </div>
+                      )}
                       
                       <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
                         <button 
@@ -1317,8 +1655,8 @@ const GymExercises = () => {
                                 <thead>
                                   <tr style={{ borderBottom: '1px solid var(--border-light)', color: 'var(--text-muted)' }}>
                                     <th style={{ textAlign: 'left', padding: '6px 8px' }}>Set #</th>
-                                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Weight (kg)</th>
-                                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>Reps</th>
+                                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>{getExerciseMetrics(log.name, ex.name).weightLabel}</th>
+                                    <th style={{ textAlign: 'left', padding: '6px 8px' }}>{getExerciseMetrics(log.name, ex.name).repsLabel}</th>
                                     <th style={{ textAlign: 'center', padding: '6px 8px', width: '80px' }}>Log</th>
                                   </tr>
                                 </thead>
@@ -1339,7 +1677,7 @@ const GymExercises = () => {
                                           style={{ width: '70px', padding: '4px 8px', fontSize: '12.5px', textAlign: 'center' }}
                                           value={set.weight || ''}
                                           disabled={log.skipped}
-                                          placeholder="0"
+                                          placeholder={getExerciseMetrics(log.name, ex.name).weightPlaceholder}
                                           onChange={(e) => handleUpdateSet(ex._id, setIdx, 'weight', e.target.value)}
                                         />
                                       </td>
@@ -1350,7 +1688,7 @@ const GymExercises = () => {
                                           style={{ width: '70px', padding: '4px 8px', fontSize: '12.5px', textAlign: 'center' }}
                                           value={set.reps || ''}
                                           disabled={log.skipped}
-                                          placeholder="0"
+                                          placeholder={getExerciseMetrics(log.name, ex.name).repsPlaceholder}
                                           onChange={(e) => handleUpdateSet(ex._id, setIdx, 'reps', e.target.value)}
                                         />
                                       </td>
@@ -1395,14 +1733,23 @@ const GymExercises = () => {
                                       <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>No performance history recorded yet. Complete sets to build history!</span>
                                     ) : (
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        {exerciseHistory[ex.name.toLowerCase()].map((hist, histIdx) => (
-                                          <div key={histIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '4px' }}>
-                                            <span style={{ fontWeight: '600', color: 'var(--accent-purple)' }}>{hist.date}</span>
-                                            <span style={{ color: 'var(--text-secondary)' }}>
-                                              {hist.sets.map((s) => `${s.weight}kg x ${s.reps}${s.completed ? ' ✓' : ''}`).join(', ')}
-                                            </span>
-                                          </div>
-                                        ))}
+                                        {exerciseHistory[ex.name.toLowerCase()].map((hist, histIdx) => {
+                                          const metrics = getExerciseMetrics(log.name, ex.name);
+                                          const isTimeBased = metrics.weightLabel === 'Hold Time (s)';
+                                          return (
+                                            <div key={histIdx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '4px' }}>
+                                              <span style={{ fontWeight: '600', color: 'var(--accent-purple)' }}>{hist.date}</span>
+                                              <span style={{ color: 'var(--text-secondary)' }}>
+                                                {hist.sets.map((s) => {
+                                                  if (isTimeBased) {
+                                                    return `${s.weight}s x ${s.reps} breaths${s.completed ? ' ✓' : ''}`;
+                                                  }
+                                                  return `${s.weight}kg x ${s.reps}${s.completed ? ' ✓' : ''}`;
+                                                }).join(', ')}
+                                              </span>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     )}
                                   </div>
@@ -1474,194 +1821,7 @@ const GymExercises = () => {
             </div>
           </div>
         </div>
-      ) ) : (
-        /* Progress Analytics Dashboard View */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          
-          {/* Top Row Grid: Completion and Achievements */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '24px' }}>
-            
-            {/* Completion Ring Card */}
-            <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-              <h4 style={{ marginBottom: '16px', fontSize: '15px', color: 'var(--text-secondary)', fontWeight: 'bold' }}>Weekly Completion Rate</h4>
-              {loadingSummary ? (
-                <div style={{ height: '100px', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Loading completion stats...</span>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                  <div style={{ position: 'relative', width: '100px', height: '100px' }}>
-                    <svg width="100" height="100" viewBox="0 0 100 100">
-                      <circle 
-                        cx="50" 
-                        cy="50" 
-                        r="40" 
-                        fill="transparent" 
-                        stroke="rgba(255, 255, 255, 0.05)" 
-                        strokeWidth="8" 
-                      />
-                      <circle 
-                        cx="50" 
-                        cy="50" 
-                        r="40" 
-                        fill="transparent" 
-                        stroke="var(--accent-purple)" 
-                        strokeWidth="8" 
-                        strokeDasharray={2 * Math.PI * 40}
-                        strokeDashoffset={2 * Math.PI * 40 - ((analyticsSummary?.completion?.completionRate || 0) / 100) * (2 * Math.PI * 40)}
-                        strokeLinecap="round"
-                        transform="rotate(-90 50 50)"
-                      />
-                    </svg>
-                    <div style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100px',
-                      height: '100px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '18px',
-                      fontWeight: '800',
-                      fontFamily: 'var(--font-display)',
-                      color: 'var(--text-primary)'
-                    }}>
-                      {analyticsSummary?.completion?.completionRate || 0}%
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'left', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    <div style={{ marginBottom: '4px' }}>
-                      Completed: <strong style={{ color: 'var(--accent-emerald)' }}>{analyticsSummary?.completion?.completedWorkouts || 0}</strong>
-                    </div>
-                    <div style={{ marginBottom: '4px' }}>
-                      Skipped: <strong style={{ color: 'var(--accent-orange)' }}>{analyticsSummary?.completion?.skippedWorkouts || 0}</strong>
-                    </div>
-                    <div>
-                      Total Logs: <strong>{analyticsSummary?.completion?.totalWorkouts || 0}</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Achievements Milestones Card */}
-            <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-              <h4 style={{ marginBottom: '16px', fontSize: '15px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-                <Sparkles size={16} className="text-purple" /> Progressive Milestones
-              </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '110px', paddingRight: '4px' }}>
-                {analyticsSummary?.achievements && analyticsSummary.achievements.length > 0 ? (
-                  analyticsSummary.achievements.map((ach, idx) => (
-                    <div 
-                      key={idx} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '10px', 
-                        padding: '10px 12px', 
-                        borderRadius: '8px', 
-                        background: 'rgba(168, 85, 247, 0.03)', 
-                        border: '1px solid rgba(168, 85, 247, 0.08)' 
-                      }}
-                    >
-                      <TrendingUp size={16} className="text-purple" style={{ flexShrink: 0 }} />
-                      <span style={{ fontSize: '13px', color: 'var(--text-primary)', lineHeight: '1.4' }}>
-                        {ach}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontStyle: 'italic', padding: '10px 0' }}>
-                    No strength improvements recorded yet. Log weights over multiple sessions to unlock achievements.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Performance Progression Charts */}
-          <div>
-            <div className="form-group" style={{ maxWidth: '300px', marginBottom: '24px' }}>
-              <label className="form-label">Analyze Exercise Progress</label>
-              <select 
-                className="input-field"
-                value={selectedTrendExercise}
-                onChange={(e) => setSelectedTrendExercise(e.target.value)}
-              >
-                <option value="">-- Choose Exercise --</option>
-                {historyAnalytics.map(ex => (
-                  <option key={ex.name} value={ex.name}>{ex.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {selectedTrendExercise ? (() => {
-              const exerciseData = historyAnalytics.find(h => h.name === selectedTrendExercise);
-              const history = exerciseData?.history || [];
-              
-              if (history.length === 0) {
-                return (
-                  <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    No completed sets history found for {selectedTrendExercise}.
-                  </p>
-                );
-              }
-              
-              return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                  {/* Strength Chart */}
-                  <div className="card" style={{ padding: '20px' }}>
-                    <h4 style={{ marginBottom: '16px', fontSize: '15px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-                      <Trophy size={15} className="text-purple" /> Strength Curve (Max Weight)
-                    </h4>
-                    {renderCustomSvgChart(history, 'maxWeight', 'var(--accent-purple)', 'purple-grad')}
-                  </div>
-                  
-                  {/* Volume Chart */}
-                  <div className="card" style={{ padding: '20px' }}>
-                    <h4 style={{ marginBottom: '16px', fontSize: '15px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-                      <Activity size={15} className="text-cyan" /> Volume Curve (Total Weight Lifted)
-                    </h4>
-                    {renderCustomSvgChart(history, 'volume', 'var(--accent-cyan)', 'cyan-grad')}
-                  </div>
-                </div>
-              );
-            })() : (
-              <div className="card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <Info size={32} style={{ margin: '0 auto 12px auto', opacity: 0.5 }} className="text-purple" />
-                <p>Select an exercise from the dropdown above to plot strength and volume curves.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Personal Records Grid */}
-          <div>
-            <h4 style={{ marginBottom: '16px', fontSize: '16px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-              <Trophy size={16} className="text-purple" /> Personal Records (PRs)
-            </h4>
-            {analyticsSummary?.prs && Object.keys(analyticsSummary.prs).length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '16px' }}>
-                {Object.entries(analyticsSummary.prs).map(([exName, weight]) => (
-                  <div key={exName} className="card" style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255, 255, 255, 0.015)' }}>
-                    <div style={{ padding: '10px', borderRadius: '8px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--accent-purple)' }}>
-                      <Trophy size={18} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '500' }}>{exName}</span>
-                      <span style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-primary)' }}>{weight} kg</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: 'var(--text-muted)', fontSize: '13px', fontStyle: 'italic' }}>
-                No personal records logged yet. Tick completed sets with weights to register milestones.
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      ))}
 
 
 

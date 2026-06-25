@@ -442,7 +442,7 @@ router.post('/resolve-unmarked', protect, async (req, res) => {
 // @route   POST /api/workouts/generate
 // @access  Private
 router.post('/generate', protect, async (req, res) => {
-  const { date, prompt } = req.body;
+  const { date, prompt, append } = req.body;
 
   if (!date) {
     return res.status(400).json({ message: 'Date is required' });
@@ -457,9 +457,6 @@ router.post('/generate', protect, async (req, res) => {
     }
 
     let log = await WorkoutLog.findOne({ user: req.user._id, date });
-    if (log && log.exercises.length > 0) {
-      return res.json({ log, message: 'Workout already generated for today' });
-    }
 
     const recentLogs = await WorkoutLog.find({ user: req.user._id, date: { $ne: date } })
       .sort({ date: -1 })
@@ -497,11 +494,7 @@ router.post('/generate', protect, async (req, res) => {
       log = new WorkoutLog({ user: req.user._id, date, exercises: [] });
     }
 
-    log.name = workoutData.name || 'Planned Workout';
-    log.difficulty = workoutData.difficulty || 'Intermediate';
-    log.estimatedDuration = Number(workoutData.estimatedDuration) || 45;
-
-    log.exercises = workoutData.exercises.map(ex => {
+    const mappedExercises = workoutData.exercises.map(ex => {
       const defaultSets = ex.sets || 3;
       const setDetails = [];
       for (let i = 0; i < defaultSets; i++) {
@@ -517,7 +510,19 @@ router.post('/generate', protect, async (req, res) => {
         setDetails
       };
     });
+
+    if (append && log.exercises.length > 0) {
+      log.exercises = [...log.exercises, ...mappedExercises];
+      log.name = log.name ? `${log.name} & ${workoutData.name || 'Planned Workout'}` : (workoutData.name || 'Planned Workout');
+      log.estimatedDuration = (log.estimatedDuration || 0) + (Number(workoutData.estimatedDuration) || 45);
+    } else {
+      log.name = workoutData.name || 'Planned Workout';
+      log.difficulty = workoutData.difficulty || 'Intermediate';
+      log.estimatedDuration = Number(workoutData.estimatedDuration) || 45;
+      log.exercises = mappedExercises;
+    }
     log.skipped = false;
+    log.isRestDay = false;
 
     await log.save();
     res.json({ log, aiUsed });
