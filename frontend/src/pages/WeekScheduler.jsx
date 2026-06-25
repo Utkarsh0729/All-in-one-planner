@@ -125,6 +125,12 @@ const WeekScheduler = () => {
   });
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
 
+  // Carry Over previous week's uncompleted goals states
+  const [prevWeekGoals, setPrevWeekGoals] = useState([]);
+  const [selectedPrevGoals, setSelectedPrevGoals] = useState([]);
+  const [showCarryOver, setShowCarryOver] = useState(true);
+  const [expandCarryOver, setExpandCarryOver] = useState(false);
+
   const weekStartStr = currentWeekMonday.toISOString().split('T')[0];
 
   const fetchGoals = useCallback(async () => {
@@ -146,6 +152,25 @@ const WeekScheduler = () => {
       setLoading(false);
     }
   }, [weekStartStr, token, API_URL]);
+
+  const fetchPrevWeekGoals = useCallback(async () => {
+    const prevWeekMonday = new Date(currentWeekMonday);
+    prevWeekMonday.setDate(prevWeekMonday.getDate() - 7);
+    const prevWeekStartStr = prevWeekMonday.toISOString().split('T')[0];
+    try {
+      const res = await fetch(`${API_URL}/week-goals/${prevWeekStartStr}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const uncompleted = data.filter(g => !g.completed);
+        setPrevWeekGoals(uncompleted);
+        setSelectedPrevGoals(uncompleted.map(g => g._id));
+      }
+    } catch (err) {
+      console.error('Failed to fetch previous week goals:', err);
+    }
+  }, [currentWeekMonday, token, API_URL]);
 
   const fetchAnalytics = useCallback(async () => {
     // Defer state updates to avoid react-hooks/set-state-in-effect
@@ -170,10 +195,11 @@ const WeekScheduler = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchGoals();
+      fetchPrevWeekGoals();
       fetchAnalytics();
     }, 0);
     return () => clearTimeout(timer);
-  }, [fetchGoals, fetchAnalytics]);
+  }, [fetchGoals, fetchPrevWeekGoals, fetchAnalytics]);
 
   const handleCreateGoal = async (e) => {
     e.preventDefault();
@@ -434,10 +460,67 @@ const WeekScheduler = () => {
     }
   };
 
+  const handleTogglePrevGoalSelection = (goalId) => {
+    setSelectedPrevGoals(prev => 
+      prev.includes(goalId) 
+        ? prev.filter(id => id !== goalId) 
+        : [...prev, goalId]
+    );
+  };
+
+  const handleCarryOverGoals = async (selectedGoalIds) => {
+    if (!selectedGoalIds || selectedGoalIds.length === 0) return;
+    setLoading(true);
+    setError('');
+    
+    const goalsToCarryOver = prevWeekGoals.filter(g => selectedGoalIds.includes(g._id));
+    
+    try {
+      const promises = goalsToCarryOver.map(g => {
+        const subtasksToCarry = g.subtasks
+          ? g.subtasks.filter(s => !s.checked).map(s => ({ text: s.text, checked: false }))
+          : [];
+          
+        return fetch(`${API_URL}/week-goals`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            weekStart: weekStartStr,
+            title: g.title,
+            subtasks: subtasksToCarry
+          })
+        }).then(async res => {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Failed to create goal');
+          return data;
+        });
+      });
+      
+      const createdGoals = await Promise.all(promises);
+      setGoals(prev => [...prev, ...createdGoals]);
+      setPrevWeekGoals(prev => prev.filter(g => !selectedGoalIds.includes(g._id)));
+      setSelectedPrevGoals([]);
+      setExpandCarryOver(false);
+      fetchAnalytics();
+    } catch (err) {
+      console.error('Failed to carry over goals:', err);
+      setError(err.message || 'Failed to carry over some goals.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const changeWeek = (direction) => {
     const newMonday = new Date(currentWeekMonday);
     newMonday.setDate(newMonday.getDate() + direction * 7);
     setCurrentWeekMonday(newMonday);
+    setShowCarryOver(true);
+    setExpandCarryOver(false);
+    setSelectedPrevGoals([]);
+    setPrevWeekGoals([]);
   };
 
   const formatDateRange = () => {
@@ -516,6 +599,150 @@ const WeekScheduler = () => {
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px' }}>
           {/* Left Column: Weekly Goals List */}
           <div>
+            {/* Carry Over Previous Week's Goals */}
+            {prevWeekGoals.length > 0 && showCarryOver && (
+              <div 
+                className="card" 
+                style={{ 
+                  marginBottom: '24px', 
+                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(6, 182, 212, 0.08) 100%)', 
+                  border: '1px solid rgba(99, 102, 241, 0.25)',
+                  boxShadow: '0 8px 32px 0 rgba(99, 102, 241, 0.1)'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: 'rgba(99, 102, 241, 0.15)',
+                      color: 'var(--primary)'
+                    }}>
+                      <Sparkles size={18} />
+                    </div>
+                    <div>
+                      <h4 style={{ fontSize: '15.5px', fontWeight: '700' }}>Carry Over Last Week's Goals</h4>
+                      <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        You have {prevWeekGoals.length} uncompleted goal{prevWeekGoals.length > 1 ? 's' : ''} from the previous week.
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button 
+                      className="btn btn-secondary" 
+                      onClick={() => setExpandCarryOver(!expandCarryOver)}
+                      style={{ padding: '6px 14px', fontSize: '12.5px', height: '32px' }}
+                    >
+                      {expandCarryOver ? 'Collapse' : 'Review'}
+                    </button>
+                    <button 
+                      onClick={() => setShowCarryOver(false)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                      title="Dismiss"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                {expandCarryOver && (
+                  <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }} className="page-fade-in">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                      {prevWeekGoals.map(g => {
+                        const isSelected = selectedPrevGoals.includes(g._id);
+                        const uncheckedSubtasks = g.subtasks ? g.subtasks.filter(s => !s.checked) : [];
+                        
+                        return (
+                          <div 
+                            key={g._id} 
+                            style={{ 
+                              background: 'rgba(255, 255, 255, 0.01)', 
+                              border: '1px solid var(--border-light)', 
+                              borderRadius: '10px', 
+                              padding: '12px 16px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '8px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1 }}>
+                                <input 
+                                  type="checkbox" 
+                                  checked={isSelected}
+                                  onChange={() => handleTogglePrevGoalSelection(g._id)}
+                                  style={{ 
+                                    width: '18px', 
+                                    height: '18px', 
+                                    accentColor: 'var(--primary)',
+                                    cursor: 'pointer'
+                                  }}
+                                />
+                                <span style={{ 
+                                  fontWeight: '600', 
+                                  fontSize: '14.5px', 
+                                  textDecoration: isSelected ? 'none' : 'line-through', 
+                                  opacity: isSelected ? 1 : 0.5,
+                                  color: isSelected ? 'var(--text-primary)' : 'var(--text-muted)',
+                                  transition: 'var(--transition)'
+                                }}>
+                                  {g.title}
+                                </span>
+                              </label>
+                              {uncheckedSubtasks.length > 0 && (
+                                <span style={{ fontSize: '11px', color: 'var(--accent-cyan)', background: 'rgba(6, 182, 212, 0.08)', padding: '2px 8px', borderRadius: '12px', fontWeight: '600' }}>
+                                  {uncheckedSubtasks.length} subtask{uncheckedSubtasks.length > 1 ? 's' : ''} left
+                                </span>
+                              )}
+                            </div>
+                            
+                            {uncheckedSubtasks.length > 0 && isSelected && (
+                              <div style={{ paddingLeft: '28px', borderLeft: '2px solid rgba(255, 255, 255, 0.04)', display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                                {uncheckedSubtasks.map((s, idx) => (
+                                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                    <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent-cyan)' }} />
+                                    <span>{s.text}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                      <button 
+                        className="btn btn-secondary" 
+                        onClick={() => {
+                          if (selectedPrevGoals.length === prevWeekGoals.length) {
+                            setSelectedPrevGoals([]);
+                          } else {
+                            setSelectedPrevGoals(prevWeekGoals.map(g => g._id));
+                          }
+                        }}
+                        style={{ padding: '8px 16px', fontSize: '13px' }}
+                      >
+                        {selectedPrevGoals.length === prevWeekGoals.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                      <button 
+                        className="btn btn-primary" 
+                        disabled={selectedPrevGoals.length === 0 || loading}
+                        onClick={() => handleCarryOverGoals(selectedPrevGoals)}
+                        style={{ padding: '8px 16px', fontSize: '13px' }}
+                      >
+                        {loading ? 'Carrying over...' : `Carry Over Selected (${selectedPrevGoals.length})`}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="card">
               <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Calendar size={22} className="text-emerald" /> Goals for the Week
